@@ -77,6 +77,20 @@ seedData.invoices = [
   makeInvoice("472", seedData.clients[3], "FVG4A33", 900, "PIX", "2026-03-09", "", false, "", "FALTA NOTA"),
 ];
 
+// Função auxiliar para carregar dados locais se não houver Firestore ativo
+function loadData() {
+  const local = localStorage.getItem(STORAGE_KEY);
+  if (local) {
+    try { return JSON.parse(local); } catch { }
+  }
+  return { clients: [...seedData.clients], invoices: [...seedData.invoices] };
+}
+
+// Função auxiliar para salvar dados localmente (substituindo o Firebase por enquanto)
+function saveStateToLocalStorage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
 let state = loadData();
 
 const els = {
@@ -114,78 +128,45 @@ function makeInvoice(serviceOrder, client, plate, amount, paymentMethod, startDa
   };
 }
 
-function userCollection(name) {
-  if (!currentUser) throw new Error("Usuario nao autenticado.");
-  return collection(db, "users", currentUser.uid, name);
-}
-
-function userDoc(name, id) {
-  if (!currentUser) throw new Error("Usuario nao autenticado.");
-  return doc(db, "users", currentUser.uid, name, id);
-}
-
 function withTimestamps(record) {
   return {
     ...record,
-    updatedAt: serverTimestamp(),
+    updatedAt: new Date().toISOString(),
   };
 }
 
 async function saveClient(client) {
-  await setDoc(userDoc("clients", client.id), withTimestamps(client), { merge: true });
+  const index = state.clients.findIndex(c => c.id === client.id);
+  if (index >= 0) {
+    state.clients[index] = withTimestamps(client);
+  } else {
+    state.clients.push(withTimestamps({ ...client, createdAt: new Date().toISOString() }));
+  }
+  saveStateToLocalStorage();
+  render();
 }
 
 async function saveInvoice(invoice) {
-  await setDoc(userDoc("invoices", invoice.id), withTimestamps(invoice), { merge: true });
+  const index = state.invoices.findIndex(i => i.id === invoice.id);
+  if (index >= 0) {
+    state.invoices[index] = withTimestamps(invoice);
+  } else {
+    state.invoices.push(withTimestamps({ ...invoice, createdAt: new Date().toISOString() }));
+  }
+  saveStateToLocalStorage();
+  render();
 }
 
 async function removeClient(id) {
-  await deleteDoc(userDoc("clients", id));
+  state.clients = state.clients.filter(c => c.id !== id);
+  saveStateToLocalStorage();
+  render();
 }
 
 async function removeInvoice(id) {
-  await deleteDoc(userDoc("invoices", id));
-}
-
-async function seedFirstAccess() {
-  const snapshot = await getDocs(userCollection("clients"));
-  if (!snapshot.empty) return;
-
-  const batch = writeBatch(db);
-  seedData.clients.forEach((client) => {
-    batch.set(userDoc("clients", client.id), withTimestamps({ ...client, createdAt: serverTimestamp() }));
-  });
-  seedData.invoices.forEach((invoice) => {
-    batch.set(userDoc("invoices", invoice.id), withTimestamps({ ...invoice, createdAt: serverTimestamp() }));
-  });
-  await batch.commit();
-}
-
-function stopRealtimeListeners() {
-  if (unsubscribeClients) unsubscribeClients();
-  if (unsubscribeInvoices) unsubscribeInvoices();
-  unsubscribeClients = null;
-  unsubscribeInvoices = null;
-}
-
-function startRealtimeListeners() {
-  stopRealtimeListeners();
-  unsubscribeClients = onSnapshot(
-    query(userCollection("clients"), orderBy("name")),
-    (snapshot) => {
-      state.clients = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-      render();
-    },
-    () => showToast("Nao foi possivel carregar os clientes."),
-  );
-  unsubscribeInvoices = onSnapshot(
-    query(userCollection("invoices"), orderBy("serviceOrder")),
-    (snapshot) => {
-      state.invoices = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-      render();
-    },
-    () => showToast("Nao foi possivel carregar as notas."),
-  );
+  state.invoices = state.invoices.filter(i => i.id !== id);
+  saveStateToLocalStorage();
+  render();
 }
 
 function formatMoney(value) {
@@ -638,16 +619,11 @@ document.querySelector("#importData").addEventListener("change", async (event) =
     if (!Array.isArray(imported.clients) || !Array.isArray(imported.invoices)) {
       throw new Error("Formato invalido");
     }
-    const batch = writeBatch(db);
-    imported.clients.forEach((client) => {
-      const id = client.id || crypto.randomUUID();
-      batch.set(userDoc("clients", id), withTimestamps({ ...client, id }));
-    });
-    imported.invoices.forEach((invoice) => {
-      const id = invoice.id || crypto.randomUUID();
-      batch.set(userDoc("invoices", id), withTimestamps({ ...invoice, id }));
-    });
-    await batch.commit();
+    
+    state.clients = imported.clients;
+    state.invoices = imported.invoices;
+    saveStateToLocalStorage();
+    render();
     showToast("Backup importado com sucesso.");
   } catch {
     showToast("Nao foi possivel importar esse arquivo.");
@@ -656,6 +632,10 @@ document.querySelector("#importData").addEventListener("change", async (event) =
   }
 });
 
+// ==========================================
+// AUTENTICAÇÃO DO FIREBASE DESATIVADA
+// ==========================================
+/*
 els.authForm.addEventListener("submit", (event) => {
   event.preventDefault();
   authenticate("login");
@@ -666,110 +646,15 @@ els.signupButton.addEventListener("click", () => authenticate("signup"));
 window.nfLogin = () => authenticate("login");
 window.nfSignup = () => authenticate("signup");
 
-async function authenticate(mode) {
-  els.authMessage.textContent = "";
-  const email = els.authEmail.value.trim();
-  const password = els.authPassword.value;
+async function authenticate(mode) { ... }
+function withTimeout(promise) { ... }
+function setAuthBusy(isBusy, mode) { ... }
+els.logoutButton.addEventListener("click", async () => { await signOut(auth); });
+onAuthStateChanged(auth, async (user) => { ... });
+function authErrorMessage(code) { ... }
+*/
 
-  if (!email) {
-    els.authMessage.textContent = "Digite seu e-mail.";
-    els.authEmail.focus();
-    return;
-  }
-
-  if (!email.includes("@")) {
-    els.authMessage.textContent = "Digite um e-mail valido.";
-    els.authEmail.focus();
-    return;
-  }
-
-  if (!password) {
-    els.authMessage.textContent = "Digite sua senha.";
-    els.authPassword.focus();
-    return;
-  }
-
-  if (password.length < 6) {
-    els.authMessage.textContent = "A senha precisa ter pelo menos 6 caracteres.";
-    els.authPassword.focus();
-    return;
-  }
-
-  setAuthBusy(true, mode);
-  els.authMessage.textContent = mode === "login" ? "Conectando ao Firebase..." : "Criando conta no Firebase...";
-
-  try {
-    if (mode === "login") {
-      await withTimeout(signInWithEmailAndPassword(auth, email, password));
-    } else {
-      await withTimeout(createUserWithEmailAndPassword(auth, email, password));
-    }
-  } catch (error) {
-    console.error("Erro de autenticacao Firebase:", error.code, error.message);
-    els.authMessage.textContent = authErrorMessage(error.code || error.message);
-  } finally {
-    setAuthBusy(false, mode);
-  }
-}
-
-function withTimeout(promise) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error("auth-timeout")), 12000);
-    }),
-  ]);
-}
-
-function setAuthBusy(isBusy, mode) {
-  els.loginButton.disabled = isBusy;
-  els.signupButton.disabled = isBusy;
-  els.loginButton.textContent = isBusy && mode === "login" ? "Entrando..." : "Entrar";
-  els.signupButton.textContent = isBusy && mode === "signup" ? "Criando..." : "Criar conta";
-}
-
-els.logoutButton.addEventListener("click", async () => {
-  await signOut(auth);
-});
-
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
-  stopRealtimeListeners();
-
-  if (!user) {
-    state = { clients: [], invoices: [] };
-    document.body.classList.remove("auth-loading", "signed-in");
-    document.body.classList.add("signed-out");
-    render();
-    return;
-  }
-
-  document.body.classList.remove("auth-loading", "signed-out");
-  document.body.classList.add("signed-in");
-  els.userBadge.textContent = user.email || "Usuario conectado";
-
-  try {
-    await seedFirstAccess();
-    startRealtimeListeners();
-  } catch {
-    showToast("Firebase conectado, mas os dados nao carregaram. Confira as regras do Firestore.");
-  }
-});
-
-function authErrorMessage(code) {
-  const messages = {
-    "auth/email-already-in-use": "Este e-mail ja possui conta.",
-    "auth/invalid-email": "Digite um e-mail valido.",
-    "auth/invalid-credential": "E-mail ou senha invalidos.",
-    "auth/user-not-found": "Conta nao encontrada.",
-    "auth/wrong-password": "Senha incorreta.",
-    "auth/weak-password": "Use uma senha com pelo menos 6 caracteres.",
-    "auth/network-request-failed": "Falha de conexao com o Firebase.",
-    "auth/operation-not-allowed": "Ative login por e-mail/senha no Firebase Authentication.",
-    "auth/configuration-not-found": "Ative o Authentication neste projeto Firebase.",
-    "auth/unauthorized-domain": "Dominio nao autorizado. Abra em http://localhost:4173 ou autorize 127.0.0.1 no Firebase.",
-    "auth/too-many-requests": "Muitas tentativas. Aguarde um pouco e tente novamente.",
-    "auth-timeout": "O Firebase nao respondeu. Confira sua internet, dominio autorizado e tente em http://localhost:4173.",
-  };
-  return messages[code] || "Nao foi possivel autenticar. Verifique o Firebase e tente novamente.";
-}
+// Inicialização direta do sistema sem depender de login
+document.body.classList.remove("auth-loading", "signed-out");
+document.body.classList.add("signed-in");
+render();
