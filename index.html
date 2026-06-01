@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestor de Notas Fiscais</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell" id="appShell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">NF</span>
+          <div>
+            <strong>Gestor NF</strong>
+            <small>Manutenção e clientes</small>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Navegação principal">
+          <button class="nav-item active" data-view="dashboard" type="button">Painel</button>
+          <button class="nav-item" data-view="notas" type="button">Notas</button>
+          <button class="nav-item" data-view="clientes" type="button">Clientes</button>
+        </nav>
+
+        <div class="storage-card">
+          <span>Dados locais</span>
+          <strong id="storageCount">0 registros</strong>
+          <button id="exportData" type="button">Exportar</button>
+          <label class="import-button">
+            Importar
+            <input id="importData" type="file" accept="application/json" />
+          </label>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Controle de emissão</p>
+            <h1>Notas fiscais de clientes</h1>
+          </div>
+          <div class="top-actions">
+            <button id="openClientModal" class="secondary" type="button">Novo cliente</button>
+            <button id="openInvoiceModal" class="primary" type="button">Nova nota</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboardView">
+          <div class="metric-grid">
+            <article class="metric overdue">
+              <span>Vencidas</span>
+              <strong id="overdueCount">0</strong>
+              <small id="overdueValue">R$ 0,00</small>
+            </article>
+            <article class="metric due">
+              <span>No prazo</span>
+              <strong id="openCount">0</strong>
+              <small id="openValue">R$ 0,00</small>
+            </article>
+            <article class="metric paid">
+              <span>Pagas</span>
+              <strong id="paidCount">0</strong>
+              <small id="paidValue">R$ 0,00</small>
+            </article>
+            <article class="metric total">
+              <span>Total lançado</span>
+              <strong id="totalValue">R$ 0,00</strong>
+              <small id="monthLabel">Mês atual</small>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Próximos vencimentos</h2>
+                  <p>Notas abertas ordenadas pela data limite.</p>
+                </div>
+              </div>
+              <div id="dueList" class="due-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Resumo por cliente</h2>
+                  <p>Valores lançados, pagos e pendentes.</p>
+                </div>
+              </div>
+              <div class="table-wrap compact">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Aberto</th>
+                      <th>Pago</th>
+                    </tr>
+                  </thead>
+                  <tbody id="clientSummary"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="notasView">
+          <section class="toolbar">
+            <input id="invoiceSearch" type="search" placeholder="Buscar por cliente, OS, placa ou status" />
+            <select id="statusFilter" aria-label="Filtrar por situação">
+              <option value="todos">Todas as situações</option>
+              <option value="vencido">Vencidas</option>
+              <option value="no-prazo">No prazo</option>
+              <option value="pago">Pagas</option>
+            </select>
+            <select id="clientFilter" aria-label="Filtrar por cliente">
+              <option value="todos">Todos os clientes</option>
+            </select>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Controle de notas</h2>
+                <p>Base operacional com OS, placa, valor, prazo e pagamento.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>OS</th>
+                    <th>Cliente</th>
+                    <th>Placa</th>
+                    <th>Valor</th>
+                    <th>Pagamento</th>
+                    <th>Data inicial</th>
+                    <th>Prazo</th>
+                    <th>Dias</th>
+                    <th>Situação</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="invoiceTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="clientesView">
+          <section class="toolbar">
+            <input id="clientSearch" type="search" placeholder="Buscar por nome, CNPJ, cidade ou telefone" />
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Base de dados - clientes</h2>
+                <p>Cadastro usado para preencher as notas fiscais.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>CPF/CNPJ</th>
+                    <th>Nome</th>
+                    <th>Endereço</th>
+                    <th>Nº</th>
+                    <th>CEP</th>
+                    <th>Bairro</th>
+                    <th>Cidade</th>
+                    <th>UF</th>
+                    <th>Telefone</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="clientTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="invoiceModal">
+      <form id="invoiceForm" method="dialog" class="modal-form">
+        <header>
+          <h2 id="invoiceModalTitle">Nova nota</h2>
+          <button class="icon-button" value="cancel" type="button" data-close="invoiceModal" aria-label="Fechar">×</button>
+        </header>
+        <input type="hidden" id="invoiceId" />
+        <div class="form-grid">
+          <label>
+            OS
+            <input id="serviceOrder" required placeholder="Ex.: 472" />
+          </label>
+          <label>
+            Cliente
+            <select id="invoiceClient" required></select>
+          </label>
+          <label>
+            Placa
+            <input id="plate" placeholder="Ex.: ABC1D23" />
+          </label>
+          <label>
+            Valor
+            <input id="amount" required inputmode="decimal" placeholder="Ex.: 600,00" />
+          </label>
+          <label>
+            Forma de pagamento
+            <select id="paymentMethod">
+              <option>PIX</option>
+              <option>Boleto</option>
+              <option>Cartão</option>
+              <option>Dinheiro</option>
+              <option>Transferência</option>
+            </select>
+          </label>
+          <label>
+            Data inicial
+            <input id="startDate" required type="date" />
+          </label>
+          <label>
+            Prazo em dias
+            <input id="termDays" type="number" min="0" step="1" placeholder="Ex.: 10" />
+          </label>
+          <label>
+            Pago?
+            <select id="paid">
+              <option value="false">Não</option>
+              <option value="true">Sim</option>
+            </select>
+          </label>
+          <label>
+            Data de pagamento
+            <input id="paidDate" type="date" />
+          </label>
+          <label class="wide">
+            Status operacional
+            <input id="operationStatus" placeholder="Ex.: EM DIAGNÓSTICO, FALTA NOTA" />
+          </label>
+        </div>
+        <footer>
+          <button class="secondary" value="cancel" type="button" data-close="invoiceModal">Cancelar</button>
+          <button class="primary" type="submit">Salvar nota</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="clientModal">
+      <form id="clientForm" method="dialog" class="modal-form">
+        <header>
+          <h2 id="clientModalTitle">Novo cliente</h2>
+          <button class="icon-button" value="cancel" type="button" data-close="clientModal" aria-label="Fechar">×</button>
+        </header>
+        <input type="hidden" id="clientId" />
+        <div class="form-grid">
+          <label>
+            CPF/CNPJ
+            <input id="document" required placeholder="00.000.000/0000-00" />
+          </label>
+          <label class="wide">
+            Nome
+            <input id="clientName" required placeholder="Nome do cliente" />
+          </label>
+          <label class="wide">
+            Endereço
+            <input id="address" placeholder="Rua, avenida ou rodovia" />
+          </label>
+          <label>
+            Nº
+            <input id="number" placeholder="S/N" />
+          </label>
+          <label>
+            CEP
+            <input id="zip" placeholder="00000-000" />
+          </label>
+          <label>
+            Bairro
+            <input id="district" />
+          </label>
+          <label>
+            Cidade
+            <input id="city" />
+          </label>
+          <label>
+            UF
+            <input id="state" maxlength="2" placeholder="SP" />
+          </label>
+          <label>
+            Telefone
+            <input id="phone" placeholder="(11) 0000-0000" />
+          </label>
+        </div>
+        <footer>
+          <button class="secondary" value="cancel" type="button" data-close="clientModal">Cancelar</button>
+          <button class="primary" type="submit">Salvar cliente</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>
