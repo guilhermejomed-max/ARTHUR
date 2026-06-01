@@ -1,37 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  createUserWithEmailAndPassword,
-  getAuth,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  writeBatch,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDZPH3hfbx4hq2FGprv9Jmc3J07LmzZ7iI",
-  authDomain: "arthur-424a0.firebaseapp.com",
-  projectId: "arthur-424a0",
-  storageBucket: "arthur-424a0.firebasestorage.app",
-  messagingSenderId: "906078778864",
-  appId: "1:906078778864:web:64b5a5df1d5189666cd935",
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const STORAGE_KEY = "gestor-nf-data-v1";
 
 const seedData = {
   clients: [
@@ -110,10 +77,7 @@ seedData.invoices = [
   makeInvoice("472", seedData.clients[3], "FVG4A33", 900, "PIX", "2026-03-09", "", false, "", "FALTA NOTA"),
 ];
 
-let state = { clients: [], invoices: [] };
-let currentUser = null;
-let unsubscribeClients = null;
-let unsubscribeInvoices = null;
+let state = loadData();
 
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -132,19 +96,7 @@ const els = {
   clientFilter: document.querySelector("#clientFilter"),
   storageCount: document.querySelector("#storageCount"),
   toast: document.querySelector("#toast"),
-  authForm: document.querySelector("#authForm"),
-  authEmail: document.querySelector("#authEmail"),
-  authPassword: document.querySelector("#authPassword"),
-  loginButton: document.querySelector("#loginButton"),
-  signupButton: document.querySelector("#signupButton"),
-  authMessage: document.querySelector("#authMessage"),
-  userBadge: document.querySelector("#userBadge"),
-  logoutButton: document.querySelector("#logoutButton"),
 };
-
-if (location.hostname === "127.0.0.1") {
-  els.authMessage.textContent = "Dica: se o Firebase bloquear, abra em http://localhost:4173.";
-}
 
 function makeInvoice(serviceOrder, client, plate, amount, paymentMethod, startDate, termDays, paid, paidDate, operationStatus) {
   return {
