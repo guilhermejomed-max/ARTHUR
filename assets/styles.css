@@ -99,7 +99,8 @@ body.signed-in .auth-screen {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -304,6 +305,23 @@ footer {
   border-color: var(--line);
 }
 
+.quick-pay {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #bde7cf;
+  border-radius: 8px;
+  color: var(--green);
+  background: var(--soft-green);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.quick-pay:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .icon-button {
   width: 40px;
   color: var(--muted);
@@ -398,10 +416,16 @@ footer {
   margin-bottom: 14px;
 }
 
+.invoice-toolbar {
+  grid-template-columns: minmax(260px, 1fr) 170px 220px 150px 150px auto;
+}
+
 .toolbar input,
 .toolbar select,
+.toolbar button,
 .modal-form input,
-.modal-form select {
+.modal-form select,
+.modal-form textarea {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--line);
@@ -415,6 +439,62 @@ footer {
   padding: 0 12px;
 }
 
+.filter-clear {
+  min-width: 88px;
+}
+
+.filter-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.summary-metric {
+  display: grid;
+  gap: 6px;
+  min-height: 86px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.summary-metric span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.summary-metric strong {
+  font-size: 1.28rem;
+}
+
+.summary-metric.received {
+  border-top: 4px solid var(--green);
+}
+
+.summary-metric.pending {
+  border-top: 4px solid var(--yellow);
+}
+
+.summary-metric.paid {
+  border-top: 4px solid var(--blue);
+}
+
+.summary-metric.total {
+  border-top: 4px solid var(--navy);
+}
+
+#summaryFilterLabel {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -422,7 +502,7 @@ footer {
 
 table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1160px;
   border-collapse: collapse;
 }
 
@@ -560,12 +640,197 @@ dialog::backdrop {
 }
 
 .form-grid input,
-.form-grid select {
+.form-grid select,
+.form-grid textarea {
   padding: 0 11px;
   font-weight: 500;
 }
 
+.form-grid textarea {
+  min-height: 86px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
 .form-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.form-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.section-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.section-heading strong {
+  color: var(--ink);
+}
+
+.section-heading span,
+.muted-note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.muted-note {
+  margin: 0;
+}
+
+.installment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.installment-item {
+  display: grid;
+  grid-template-columns: 28px minmax(120px, 1fr) minmax(150px, 190px);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.installment-item input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+}
+
+.installment-item input[type="date"] {
+  min-height: 36px;
+}
+
+.image-preview-grid,
+.detail-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 10px;
+}
+
+.image-preview,
+.detail-image {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.image-preview img,
+.detail-image img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.image-preview footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+}
+
+.image-preview span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-preview button {
+  min-height: 30px;
+  padding: 5px 8px;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.detail-dialog {
+  width: min(980px, calc(100vw - 28px));
+}
+
+.detail-shell {
+  display: flex;
+  max-height: min(86vh, 860px);
+  flex-direction: column;
+}
+
+.detail-shell header,
+.detail-shell footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-shell footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.detail-content {
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+  padding: 18px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-field,
+.detail-block {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.detail-field > span,
+.detail-block > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detail-field strong,
+.detail-block p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.detail-block {
+  align-content: start;
+}
+
+.detail-block.wide {
   grid-column: 1 / -1;
 }
 
@@ -595,6 +860,12 @@ dialog::backdrop {
   color: var(--muted);
 }
 
+@media (max-width: 1180px) {
+  .invoice-toolbar {
+    grid-template-columns: minmax(240px, 1fr) 1fr 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -616,7 +887,9 @@ dialog::backdrop {
   }
 
   .metric-grid,
-  .content-grid {
+  .content-grid,
+  .detail-grid,
+  .filter-summary {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -635,6 +908,7 @@ dialog::backdrop {
   .top-actions,
   .auth-actions,
   .toolbar,
+  .filter-summary,
   .metric-grid,
   .content-grid,
   .form-grid {
@@ -647,6 +921,15 @@ dialog::backdrop {
 
   .primary,
   .secondary {
+    width: 100%;
+  }
+
+  .installment-item,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .installment-item input[type="date"] {
     width: 100%;
   }
 }
