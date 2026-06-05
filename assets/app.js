@@ -1,4 +1,4 @@
-const STORAGE_KEY = "gestor-nf-data-v1";
+﻿const STORAGE_KEY = "gestor-nf-data-v1";
 const BACKUP_STORAGE_KEY = "gestor-nf-data-v1-backup";
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 const MAX_INVOICE_IMAGE_SIZE = 3 * 1024 * 1024;
@@ -149,6 +149,7 @@ function makeInvoice(serviceOrder, client, plate, amount, paymentMethod, startDa
     amount,
     paymentMethod,
     installments: "",
+    paidInstallments: 0,
     startDate,
     termDays: termDays === "" ? "" : Number(termDays),
     paid,
@@ -208,14 +209,24 @@ function hasUsefulData(data) {
 }
 
 function normalizeInvoice(invoice) {
-  return {
+  const normalized = {
     fiscalNote: "",
     vehicleKm: "",
     installments: "",
+    paidInstallments: 0,
     images: [],
     ...invoice,
     images: Array.isArray(invoice?.images) ? invoice.images : [],
   };
+  if (isInstallmentPayment(normalized)) {
+    const installments = Number(normalized.installments || 0);
+    if (normalized.paid && !Number(normalized.paidInstallments || 0)) {
+      normalized.paidInstallments = installments;
+    }
+  } else {
+    normalized.paidInstallments = 0;
+  }
+  return normalized;
 }
 
 function saveData() {
@@ -369,6 +380,8 @@ function renderInvoices() {
       const client = getClient(invoice.clientId);
       const status = getInvoiceStatus(invoice);
       const row = document.createElement("tr");
+      row.className = "clickable-row";
+      row.dataset.viewInvoiceRow = invoice.id;
       row.innerHTML = `
         <td><button class="os-link" type="button" data-view-invoice="${invoice.id}">OS ${escapeHtml(invoice.serviceOrder)}</button></td>
         <td>${escapeHtml(invoice.fiscalNote || "-")}</td>
@@ -383,8 +396,7 @@ function renderInvoices() {
         <td>${escapeHtml(invoice.operationStatus || "-")}</td>
         <td>
           <div class="actions-cell">
-            <button class="ghost" type="button" data-view-invoice="${invoice.id}">Ver OS</button>
-            <button class="ghost" type="button" data-print-os="${invoice.id}">Imprimir/PDF</button>
+            <button class="ghost payment-action" type="button" data-inform-payment="${invoice.id}" ${isPaymentComplete(invoice) ? "disabled" : ""}>${paymentButtonLabel(invoice)}</button>
             <button class="ghost" type="button" data-edit-invoice="${invoice.id}">Editar</button>
             <button class="danger" type="button" data-delete-invoice="${invoice.id}">Excluir</button>
           </div>
@@ -459,7 +471,7 @@ function renderDashboard() {
     .sort((a, b) => String(a.dueDate || "9999").localeCompare(String(b.dueDate || "9999")))
     .slice(0, 6);
 
-  els.dueList.innerHTML = dueRows.length ? "" : `<div class="empty">Não há notas abertas no momento.</div>`;
+  els.dueList.innerHTML = dueRows.length ? "" : `<div class="empty">NÃ£o hÃ¡ notas abertas no momento.</div>`;
 
   dueRows.forEach(({ invoice, dueDate }) => {
     const client = getClient(invoice.clientId);
@@ -468,8 +480,8 @@ function renderDashboard() {
     item.className = "due-item";
     item.innerHTML = `
       <div>
-        <strong>OS ${escapeHtml(invoice.serviceOrder)} · ${escapeHtml(client?.name || "Cliente")}</strong>
-        <span>${escapeHtml(invoice.fiscalNote || "Sem NF")} · ${escapeHtml(invoice.plate || "Sem placa")} · ${formatMoney(invoice.amount)} · ${escapeHtml(invoice.operationStatus || "Sem status")}</span>
+        <strong>OS ${escapeHtml(invoice.serviceOrder)} Â· ${escapeHtml(client?.name || "Cliente")}</strong>
+        <span>${escapeHtml(invoice.fiscalNote || "Sem NF")} Â· ${escapeHtml(invoice.plate || "Sem placa")} Â· ${formatMoney(invoice.amount)} Â· ${escapeHtml(invoice.operationStatus || "Sem status")}</span>
       </div>
       <span class="status-pill status-${status}">${dueDate ? formatDate(dueDate) : "Sem prazo"}</span>
     `;
@@ -486,7 +498,7 @@ function renderDashboard() {
     .filter((summary) => summary.total > 0)
     .sort((a, b) => b.total - a.total);
 
-  els.clientSummary.innerHTML = summaries.length ? "" : `<tr><td colspan="3" class="empty">Sem notas lançadas.</td></tr>`;
+  els.clientSummary.innerHTML = summaries.length ? "" : `<tr><td colspan="3" class="empty">Sem notas lanÃ§adas.</td></tr>`;
 
   summaries.forEach((summary) => {
     const row = document.createElement("tr");
@@ -544,7 +556,7 @@ function renderInvoiceImagePreview() {
       <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name || "Imagem da OS")}" />
       <div>
         <strong>${escapeHtml(image.name || "Imagem da OS")}</strong>
-        <span>Anexada à OS</span>
+        <span>Anexada Ã  OS</span>
       </div>
       <button class="danger" type="button" data-remove-invoice-image="${image.id}">Remover</button>
     `;
@@ -558,7 +570,7 @@ function render() {
   renderClients();
   renderDashboard();
   renderSettings();
-  els.storageCount.textContent = `${state.clients.length} clientes · ${state.invoices.length} notas`;
+  els.storageCount.textContent = `${state.clients.length} clientes Â· ${state.invoices.length} notas`;
 }
 
 function showToast(message) {
@@ -629,10 +641,10 @@ function resetClientForm(client = null) {
 
 function buildCompanyHeaderHtml(compact = false) {
   const settings = state.settings;
-  const companyName = settings.companyName || "Empresa não configurada";
+  const companyName = settings.companyName || "Empresa nÃ£o configurada";
   const details = [
     settings.companyCnpj ? `CNPJ: ${settings.companyCnpj}` : "",
-    settings.companyNumber ? `Número/telefone: ${settings.companyNumber}` : "",
+    settings.companyNumber ? `NÃºmero/telefone: ${settings.companyNumber}` : "",
   ].filter(Boolean);
 
   return `
@@ -644,7 +656,7 @@ function buildCompanyHeaderHtml(compact = false) {
       }
       <div>
         <strong>${escapeHtml(companyName)}</strong>
-        ${details.length ? `<span>${details.map(escapeHtml).join(" · ")}</span>` : `<span>Configure os dados da empresa no sistema.</span>`}
+        ${details.length ? `<span>${details.map(escapeHtml).join(" Â· ")}</span>` : `<span>Configure os dados da empresa no sistema.</span>`}
       </div>
     </header>
   `;
@@ -669,7 +681,7 @@ function exportRows() {
 function exportInvoicesPdf() {
   const rows = exportRows();
   if (!rows.length) {
-    showToast("Não há notas para exportar.");
+    showToast("NÃ£o hÃ¡ notas para exportar.");
     return;
   }
 
@@ -695,8 +707,8 @@ function exportInvoicesPdf() {
     .join("");
 
   const html = buildPrintableDocument({
-    title: "Relatório de notas",
-    subtitle: `Gerado em ${generatedAt} · Total: ${formatMoney(total)}`,
+    title: "RelatÃ³rio de notas",
+    subtitle: `Gerado em ${generatedAt} Â· Total: ${formatMoney(total)}`,
     orientation: "landscape",
     content: `
       <table>
@@ -710,7 +722,7 @@ function exportInvoicesPdf() {
             <th>Pagamento</th>
             <th>Data inicial</th>
             <th>Prazo</th>
-            <th>Situação</th>
+            <th>SituaÃ§Ã£o</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -720,13 +732,13 @@ function exportInvoicesPdf() {
   });
 
   openPrintDocument(html);
-  showToast("PDF aberto para impressão.");
+  showToast("PDF aberto para impressÃ£o.");
 }
 
 function exportInvoicesExcel() {
   const rows = exportRows();
   if (!rows.length) {
-    showToast("Não há notas para exportar.");
+    showToast("NÃ£o hÃ¡ notas para exportar.");
     return;
   }
 
@@ -770,7 +782,7 @@ function exportInvoicesExcel() {
             <th>Pagamento</th>
             <th>Data inicial</th>
             <th>Prazo</th>
-            <th>Situação</th>
+            <th>SituaÃ§Ã£o</th>
             <th>Status operacional</th>
           </tr>
           ${rowsHtml}
@@ -803,9 +815,62 @@ function installmentLabel(invoice) {
   if (!isInstallmentPayment(invoice)) return "";
   const installments = Number(invoice.installments || 0);
   if (!installments) return "-";
-  if (installments === 1) return "1 parcela";
+  const paidInstallments = Math.min(Number(invoice.paidInstallments || 0), installments);
   const installmentValue = Number(invoice.amount || 0) / installments;
-  return `${installments} parcelas de ${formatMoney(installmentValue)}`;
+  const paidLabel = paidInstallments === 1 ? "1 PARCELA" : `${paidInstallments} PARCELAS`;
+  return `${paidLabel} DE ${installments} PAGAS (${formatMoney(installmentValue)} cada)`;
+}
+
+function isPaymentComplete(invoice) {
+  if (isInstallmentPayment(invoice)) {
+    const installments = Number(invoice.installments || 0);
+    return installments > 0 && Number(invoice.paidInstallments || 0) >= installments;
+  }
+  return Boolean(invoice.paid);
+}
+
+function paymentButtonLabel(invoice) {
+  if (isInstallmentPayment(invoice)) {
+    const installments = Number(invoice.installments || 0);
+    const paidInstallments = Math.min(Number(invoice.paidInstallments || 0), installments);
+    return paidInstallments > 0 ? `PAGO PARCELA ${paidInstallments}/${installments || "?"}` : "Informar pagamento";
+  }
+  return invoice.paid ? "PAGO" : "Informar pagamento";
+}
+
+function informPayment(invoiceId) {
+  const invoice = state.invoices.find((item) => item.id === invoiceId);
+  if (!invoice) return;
+
+  if (isInstallmentPayment(invoice)) {
+    const installments = Number(invoice.installments || 0);
+    if (!installments) {
+      showToast("Informe a quantidade de parcelas desta OS.");
+      return;
+    }
+
+    const nextInstallment = Math.min(Number(invoice.paidInstallments || 0) + 1, installments);
+    invoice.paidInstallments = nextInstallment;
+    invoice.paid = nextInstallment >= installments;
+    invoice.paidDate = new Date().toISOString().slice(0, 10);
+    showToast(`Pago parcela ${nextInstallment}/${installments}.`);
+  } else {
+    if (invoice.paid) {
+      showToast("Esta OS jÃ¡ estÃ¡ marcada como paga.");
+      return;
+    }
+    invoice.paid = true;
+    invoice.paidDate = new Date().toISOString().slice(0, 10);
+    invoice.paidInstallments = 0;
+    showToast("Pagamento informado.");
+  }
+
+  saveData();
+  render();
+  if (els.invoiceSummaryModal.open && currentSummaryInvoiceId === invoiceId) {
+    closeDialog("invoiceSummaryModal");
+    openInvoiceSummary(invoiceId);
+  }
 }
 
 function buildImageGallery(images, emptyText = "Nenhuma imagem anexada.") {
@@ -864,6 +929,7 @@ function openInvoiceSummary(invoiceId) {
   const installmentsRow = isInstallmentPayment(invoice)
     ? `<div><dt>Parcelas</dt><dd>${installmentLabel(invoice)}</dd></div>`
     : "";
+  const paidLabel = isInstallmentPayment(invoice) ? installmentLabel(invoice) : invoice.paid ? "Sim" : "NÃ£o";
   currentSummaryInvoiceId = invoice.id;
   els.invoiceSummaryTitle.textContent = `Resumo da OS ${invoice.serviceOrder}`;
   els.invoiceSummaryContent.innerHTML = `
@@ -877,7 +943,7 @@ function openInvoiceSummary(invoiceId) {
         <strong>${formatMoney(invoice.amount)}</strong>
       </div>
       <div>
-        <span>Situação</span>
+        <span>SituaÃ§Ã£o</span>
         <strong>${statusLabel(status)}</strong>
       </div>
       <div>
@@ -896,7 +962,7 @@ function openInvoiceSummary(invoiceId) {
         </dl>
       </article>
       <article>
-        <h3>Veículo e serviço</h3>
+        <h3>VeÃ­culo e serviÃ§o</h3>
         <dl>
           <div><dt>Placa</dt><dd>${escapeHtml(invoice.plate || "-")}</dd></div>
           <div><dt>KM</dt><dd>${formatKm(invoice.vehicleKm)}</dd></div>
@@ -910,7 +976,7 @@ function openInvoiceSummary(invoiceId) {
           <div><dt>Valor total</dt><dd>${formatMoney(invoice.amount)}</dd></div>
           <div><dt>Forma</dt><dd>${escapeHtml(invoice.paymentMethod || "-")}</dd></div>
           ${installmentsRow}
-          <div><dt>Pago?</dt><dd>${invoice.paid ? "Sim" : "Não"}</dd></div>
+          <div><dt>Pago?</dt><dd>${paidLabel}</dd></div>
         </dl>
       </article>
       <article>
@@ -926,7 +992,7 @@ function openInvoiceSummary(invoiceId) {
 
     <section class="summary-notes">
       <h3>Resumo do que foi feito</h3>
-      <p>${escapeHtml(invoice.operationStatus || "Sem observações registradas.")}</p>
+      <p>${escapeHtml(invoice.operationStatus || "Sem observaÃ§Ãµes registradas.")}</p>
     </section>
 
     <section class="summary-images">
@@ -952,19 +1018,20 @@ function printServiceOrder(invoiceId) {
             </div>
       `
     : "";
+  const printPaidLabel = isInstallmentPayment(invoice) ? installmentLabel(invoice) : invoice.paid ? "Sim" : "NÃ£o";
   const clientAddress = [
     client?.address,
-    client?.number ? `Nº ${client.number}` : "",
+    client?.number ? `NÂº ${client.number}` : "",
     client?.district,
     client?.city,
     client?.state,
     client?.zip ? `CEP ${client.zip}` : "",
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(" Â· ");
 
   const html = buildPrintableDocument({
-    title: `Ordem de serviço ${invoice.serviceOrder}`,
+    title: `Ordem de serviÃ§o ${invoice.serviceOrder}`,
     subtitle: `Emitida em ${new Date().toLocaleDateString("pt-BR")}`,
     orientation: "portrait",
     content: `
@@ -982,7 +1049,7 @@ function printServiceOrder(invoiceId) {
           <strong>${escapeHtml(invoice.plate || "-")}</strong>
         </div>
         <div class="summary-block">
-          <span>Situação</span>
+          <span>SituaÃ§Ã£o</span>
           <strong class="status-text status-text-${status}">${statusLabel(status)}</strong>
         </div>
       </section>
@@ -1001,7 +1068,7 @@ function printServiceOrder(invoiceId) {
               <strong>${escapeHtml(client?.document || "-")}</strong>
             </div>
             <div>
-              <span>Endereço</span>
+              <span>EndereÃ§o</span>
               <strong>${escapeHtml(clientAddress || "-")}</strong>
             </div>
             <div>
@@ -1011,14 +1078,14 @@ function printServiceOrder(invoiceId) {
           </div>
         </article>
         <article class="detail-card">
-          <h2>Serviço</h2>
+          <h2>ServiÃ§o</h2>
           <div class="field-list">
             <div>
               <span>Status operacional</span>
               <strong>${escapeHtml(invoice.operationStatus || "-")}</strong>
             </div>
             <div>
-              <span>KM do veículo</span>
+              <span>KM do veÃ­culo</span>
               <strong>${formatKm(invoice.vehicleKm)}</strong>
             </div>
             <div>
@@ -1049,7 +1116,7 @@ function printServiceOrder(invoiceId) {
             ${printInstallmentsField}
             <div>
               <span>Pago?</span>
-              <strong>${invoice.paid ? "Sim" : "Não"}</strong>
+              <strong>${printPaidLabel}</strong>
             </div>
             <div>
               <span>Data de pagamento</span>
@@ -1059,19 +1126,19 @@ function printServiceOrder(invoiceId) {
         </article>
       </section>
       <section class="notes-box">
-        <h2>Observações operacionais</h2>
-        <p>${escapeHtml(invoice.operationStatus || "Sem observações registradas.")}</p>
+        <h2>ObservaÃ§Ãµes operacionais</h2>
+        <p>${escapeHtml(invoice.operationStatus || "Sem observaÃ§Ãµes registradas.")}</p>
       </section>
       ${buildPrintImageGallery(invoice.images)}
       <section class="signature-grid">
-        <div><span></span><strong>Responsável pela OS</strong></div>
+        <div><span></span><strong>ResponsÃ¡vel pela OS</strong></div>
         <div><span></span><strong>Assinatura do cliente</strong></div>
       </section>
     `,
   });
 
   openPrintDocument(html);
-  showToast("OS aberta para impressão.");
+  showToast("OS aberta para impressÃ£o.");
 }
 
 function buildPrintableDocument({ title, subtitle, orientation, content }) {
@@ -1082,7 +1149,10 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
         <meta charset="utf-8" />
         <title>${escapeHtml(title)}</title>
         <style>
-          @page { size: A4 ${orientation}; margin: ${orientation === "portrait" ? "13mm" : "10mm"}; }
+          @page {
+            size: A4 ${orientation};
+            margin: ${orientation === "portrait" ? "18mm 16mm 18mm 16mm" : "13mm 12mm"};
+          }
           * {
             box-sizing: border-box;
             -webkit-print-color-adjust: exact;
@@ -1144,8 +1214,8 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             align-items: flex-end;
             justify-content: space-between;
             gap: 20px;
-            margin: 18px 0 16px;
-            padding: 16px 18px;
+            margin: 16px 0 14px;
+            padding: 14px 16px;
             border-radius: 12px;
             color: #ffffff;
             background: #1c315f;
@@ -1190,11 +1260,11 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: grid;
             grid-template-columns: 1.15fr 1fr 1fr 1fr;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
           }
           .summary-block {
-            min-height: 82px;
-            padding: 13px 15px;
+            min-height: 76px;
+            padding: 12px 13px;
             border: 1px solid #b8c7dc;
             border-radius: 12px;
             background: #ffffff;
@@ -1248,7 +1318,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             background: #fff7df;
           }
           .section-title {
-            margin: 10px 0 10px;
+            margin: 8px 0 9px;
             padding: 8px 11px;
             border-left: 6px solid #1c315f;
             border-radius: 8px;
@@ -1262,12 +1332,12 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
           }
           .detail-card,
           .notes-box {
             min-height: 130px;
-            padding: 15px;
+            padding: 13px;
             border: 1px solid #b8c7dc;
             border-radius: 12px;
             background: #ffffff;
@@ -1318,10 +1388,10 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .notes-box {
             min-height: 118px;
-            margin-top: 12px;
+            margin-top: 10px;
           }
           .notes-box p {
-            min-height: 70px;
+            min-height: 64px;
             padding: 11px;
             border: 1px solid #dbe4ef;
             border-radius: 8px;
@@ -1330,8 +1400,8 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             font-size: 13.2px;
           }
           .print-images {
-            margin-top: 12px;
-            padding: 15px;
+            margin-top: 10px;
+            padding: 13px;
             border: 1px solid #b8c7dc;
             border-radius: 12px;
             background: #ffffff;
@@ -1370,7 +1440,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 38px;
-            margin-top: 58px;
+            margin-top: 48px;
           }
           .signature-grid span {
             display: block;
@@ -1498,7 +1568,7 @@ async function prepareInvoiceImage(file) {
 
 document.querySelector("#openInvoiceModal").addEventListener("click", () => {
   if (!state.clients.length) {
-    showToast("Cadastre um cliente antes de lançar uma nota.");
+    showToast("Cadastre um cliente antes de lanÃ§ar uma nota.");
     return;
   }
   resetInvoiceForm();
@@ -1533,6 +1603,7 @@ els.navItems.forEach((button) => {
 document.querySelector("#invoiceForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const id = document.querySelector("#invoiceId").value || makeId();
+  const existingInvoice = state.invoices.find((item) => item.id === id);
   const invoice = {
     id,
     serviceOrder: document.querySelector("#serviceOrder").value.trim(),
@@ -1555,12 +1626,21 @@ document.querySelector("#invoiceForm").addEventListener("submit", async (event) 
     images: currentInvoiceImages,
   };
 
+  if (isInstallmentPayment(invoice)) {
+    const installments = Number(invoice.installments || 0);
+    const previousPaidInstallments = Number(existingInvoice?.paidInstallments || 0);
+    invoice.paidInstallments = invoice.paid ? installments : Math.min(previousPaidInstallments, installments || 0);
+    invoice.paid = installments > 0 && invoice.paidInstallments >= installments;
+  } else {
+    invoice.paidInstallments = 0;
+  }
+
   try {
     await saveInvoice(invoice);
     closeDialog("invoiceModal");
     showToast("Nota salva com sucesso.");
   } catch {
-    showToast("Não foi possível salvar a nota.");
+    showToast("NÃ£o foi possÃ­vel salvar a nota.");
   }
 });
 
@@ -1585,7 +1665,7 @@ document.querySelector("#clientForm").addEventListener("submit", async (event) =
     closeDialog("clientModal");
     showToast("Cliente salvo com sucesso.");
   } catch {
-    showToast("Não foi possível salvar o cliente.");
+    showToast("NÃ£o foi possÃ­vel salvar o cliente.");
   }
 });
 
@@ -1599,7 +1679,7 @@ els.companyForm.addEventListener("submit", (event) => {
   };
   saveData();
   renderSettings();
-  showToast("Configurações salvas.");
+  showToast("ConfiguraÃ§Ãµes salvas.");
 });
 
 els.companyLogo.addEventListener("change", async (event) => {
@@ -1613,7 +1693,7 @@ els.companyLogo.addEventListener("change", async (event) => {
   }
 
   if (file.size > MAX_LOGO_SIZE) {
-    showToast("Use uma imagem com até 2 MB.");
+    showToast("Use uma imagem com atÃ© 2 MB.");
     event.target.value = "";
     return;
   }
@@ -1624,7 +1704,7 @@ els.companyLogo.addEventListener("change", async (event) => {
     renderSettings();
     showToast("Logo carregada.");
   } catch {
-    showToast("Não foi possível carregar a imagem.");
+    showToast("NÃ£o foi possÃ­vel carregar a imagem.");
   }
 });
 
@@ -1648,7 +1728,7 @@ els.invoiceImages.addEventListener("change", async (event) => {
         continue;
       }
       if (file.size > MAX_INVOICE_IMAGE_SIZE) {
-        showToast(`Imagem muito grande: ${file.name}. Use até 3 MB.`);
+        showToast(`Imagem muito grande: ${file.name}. Use atÃ© 3 MB.`);
         continue;
       }
       currentInvoiceImages.push(await prepareInvoiceImage(file));
@@ -1658,11 +1738,11 @@ els.invoiceImages.addEventListener("change", async (event) => {
     if (files.length > acceptedFiles.length) {
       showToast(`Foram anexadas ${addedCount} imagens. Limite: ${MAX_INVOICE_IMAGES}.`);
     } else if (addedCount > 0) {
-      showToast("Imagem anexada à OS.");
+      showToast("Imagem anexada Ã  OS.");
     }
     renderInvoiceImagePreview();
   } catch {
-    showToast("Não foi possível anexar uma das imagens.");
+    showToast("NÃ£o foi possÃ­vel anexar uma das imagens.");
   } finally {
     event.target.value = "";
   }
@@ -1677,76 +1757,92 @@ els.removeLogo.addEventListener("click", () => {
 
 document.body.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
-  if (!button) return;
 
-  const editInvoiceId = button.dataset.editInvoice;
-  const deleteInvoiceId = button.dataset.deleteInvoice;
-  const editClientId = button.dataset.editClient;
-  const deleteClientId = button.dataset.deleteClient;
-  const printOsId = button.dataset.printOs;
-  const viewInvoiceId = button.dataset.viewInvoice;
-  const removeInvoiceImageId = button.dataset.removeInvoiceImage;
-  const exportFormat = button.dataset.exportFormat;
+  if (button) {
+    const editInvoiceId = button.dataset.editInvoice;
+    const deleteInvoiceId = button.dataset.deleteInvoice;
+    const editClientId = button.dataset.editClient;
+    const deleteClientId = button.dataset.deleteClient;
+    const printOsId = button.dataset.printOs;
+    const viewInvoiceId = button.dataset.viewInvoice;
+    const removeInvoiceImageId = button.dataset.removeInvoiceImage;
+    const informPaymentId = button.dataset.informPayment;
+    const exportFormat = button.dataset.exportFormat;
 
-  if (exportFormat) {
-    closeDialog("exportModal");
-    if (exportFormat === "pdf") exportInvoicesPdf();
-    if (exportFormat === "excel") exportInvoicesExcel();
-    return;
-  }
-
-  if (removeInvoiceImageId) {
-    currentInvoiceImages = currentInvoiceImages.filter((image) => image.id !== removeInvoiceImageId);
-    renderInvoiceImagePreview();
-    return;
-  }
-
-  if (viewInvoiceId) {
-    openInvoiceSummary(viewInvoiceId);
-    return;
-  }
-
-  if (printOsId) {
-    printServiceOrder(printOsId);
-    return;
-  }
-
-  if (editInvoiceId) {
-    const invoice = state.invoices.find((item) => item.id === editInvoiceId);
-    resetInvoiceForm(invoice);
-    openDialog("invoiceModal");
-  }
-
-  if (deleteInvoiceId && confirm("Excluir esta nota?")) {
-    try {
-      await removeInvoice(deleteInvoiceId);
-      showToast("Nota excluída.");
-    } catch {
-      showToast("Não foi possível excluir a nota.");
-    }
-  }
-
-  if (editClientId) {
-    const client = state.clients.find((item) => item.id === editClientId);
-    resetClientForm(client);
-    openDialog("clientModal");
-  }
-
-  if (deleteClientId) {
-    const hasInvoices = state.invoices.some((invoice) => invoice.clientId === deleteClientId);
-    if (hasInvoices) {
-      showToast("Este cliente possui notas. Exclua ou edite as notas primeiro.");
+    if (exportFormat) {
+      closeDialog("exportModal");
+      if (exportFormat === "pdf") exportInvoicesPdf();
+      if (exportFormat === "excel") exportInvoicesExcel();
       return;
     }
-    if (confirm("Excluir este cliente?")) {
-      try {
-        await removeClient(deleteClientId);
-        showToast("Cliente excluído.");
-      } catch {
-        showToast("Não foi possível excluir o cliente.");
-      }
+
+    if (removeInvoiceImageId) {
+      currentInvoiceImages = currentInvoiceImages.filter((image) => image.id !== removeInvoiceImageId);
+      renderInvoiceImagePreview();
+      return;
     }
+
+    if (viewInvoiceId) {
+      openInvoiceSummary(viewInvoiceId);
+      return;
+    }
+
+    if (informPaymentId) {
+      informPayment(informPaymentId);
+      return;
+    }
+
+    if (printOsId) {
+      printServiceOrder(printOsId);
+      return;
+    }
+
+    if (editInvoiceId) {
+      const invoice = state.invoices.find((item) => item.id === editInvoiceId);
+      resetInvoiceForm(invoice);
+      openDialog("invoiceModal");
+      return;
+    }
+
+    if (deleteInvoiceId && confirm("Excluir esta nota?")) {
+      try {
+        await removeInvoice(deleteInvoiceId);
+        showToast("Nota excluida.");
+      } catch {
+        showToast("Nao foi possivel excluir a nota.");
+      }
+      return;
+    }
+
+    if (editClientId) {
+      const client = state.clients.find((item) => item.id === editClientId);
+      resetClientForm(client);
+      openDialog("clientModal");
+      return;
+    }
+
+    if (deleteClientId) {
+      const hasInvoices = state.invoices.some((invoice) => invoice.clientId === deleteClientId);
+      if (hasInvoices) {
+        showToast("Este cliente possui notas. Exclua ou edite as notas primeiro.");
+        return;
+      }
+      if (confirm("Excluir este cliente?")) {
+        try {
+          await removeClient(deleteClientId);
+          showToast("Cliente excluido.");
+        } catch {
+          showToast("Nao foi possivel excluir o cliente.");
+        }
+      }
+      return;
+    }
+
+    return;
   }
+
+  const rowInvoiceId = event.target.closest("[data-view-invoice-row]")?.dataset.viewInvoiceRow;
+  if (rowInvoiceId) openInvoiceSummary(rowInvoiceId);
 });
 
 document.querySelector("#paid").addEventListener("change", (event) => {
@@ -1793,7 +1889,7 @@ document.querySelector("#importData").addEventListener("change", async (event) =
     render();
     showToast("Dados importados com sucesso.");
   } catch {
-    showToast("Não foi possível importar esse arquivo.");
+    showToast("NÃ£o foi possÃ­vel importar esse arquivo.");
   } finally {
     event.target.value = "";
   }

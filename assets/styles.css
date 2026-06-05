@@ -467,6 +467,10 @@ tbody tr:hover {
   background: #f7faff;
 }
 
+tbody tr.clickable-row {
+  cursor: pointer;
+}
+
 .table-wrap:not(.compact) table th:last-child,
 .table-wrap:not(.compact) table td:last-child {
   position: sticky;
@@ -486,7 +490,19 @@ tbody tr:hover {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  min-width: 285px;
+  min-width: 250px;
+}
+
+.payment-action {
+  min-width: 142px;
+  font-weight: 800;
+}
+
+.payment-action:disabled {
+  color: var(--green);
+  border-color: #b7e3cf;
+  background: var(--soft-green);
+  cursor: default;
 }
 
 .status-pill {
