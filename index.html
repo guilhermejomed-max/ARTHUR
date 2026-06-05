@@ -21,6 +21,7 @@
           <button class="nav-item active" data-view="dashboard" type="button">Painel</button>
           <button class="nav-item" data-view="notas" type="button">Notas</button>
           <button class="nav-item" data-view="clientes" type="button">Clientes</button>
+          <button class="nav-item" data-view="configuracoes" type="button">Configurações</button>
         </nav>
 
         <div class="storage-card">
@@ -42,7 +43,7 @@
           </div>
           <div class="top-actions">
             <button id="openClientModal" class="secondary" type="button">Novo cliente</button>
-            <button id="openInvoiceModal" class="primary" type="button">Nova OS</button>
+            <button id="openInvoiceModal" class="primary" type="button">Nova nota</button>
           </div>
         </header>
 
@@ -105,8 +106,8 @@
         </section>
 
         <section class="view" id="notasView">
-          <section class="toolbar invoice-toolbar">
-            <input id="invoiceSearch" type="search" placeholder="Buscar por cliente, OS, placa, KM ou status" />
+          <section class="toolbar">
+            <input id="invoiceSearch" type="search" placeholder="Buscar por cliente, OS, nota fiscal, placa ou status" />
             <select id="statusFilter" aria-label="Filtrar por situação">
               <option value="todos">Todas as situações</option>
               <option value="vencido">Vencidas</option>
@@ -116,36 +117,13 @@
             <select id="clientFilter" aria-label="Filtrar por cliente">
               <option value="todos">Todos os clientes</option>
             </select>
-            <input id="periodStart" type="date" aria-label="Inicio do periodo" />
-            <input id="periodEnd" type="date" aria-label="Fim do periodo" />
-            <button id="clearInvoiceFilters" class="secondary filter-clear" type="button">Limpar</button>
-          </section>
-
-          <section class="filter-summary" aria-label="Resumo financeiro dos filtros">
-            <article class="summary-metric received">
-              <span>Recebidos</span>
-              <strong id="summaryReceivedValue">R$ 0,00</strong>
-            </article>
-            <article class="summary-metric pending">
-              <span>Pendentes</span>
-              <strong id="summaryPendingValue">R$ 0,00</strong>
-            </article>
-            <article class="summary-metric paid">
-              <span>Pagos</span>
-              <strong id="summaryPaidValue">R$ 0,00</strong>
-            </article>
-            <article class="summary-metric total">
-              <span>Total filtrado</span>
-              <strong id="summaryTotalValue">R$ 0,00</strong>
-            </article>
-            <p id="summaryFilterLabel">Todos os clientes e periodos.</p>
           </section>
 
           <section class="panel">
             <div class="panel-header">
               <div>
                 <h2>Controle de notas</h2>
-                <p>Base operacional com OS, placa, valor, prazo e pagamento.</p>
+                <p>Base operacional com OS, nota fiscal, placa, valor, prazo e pagamento.</p>
               </div>
             </div>
             <div class="table-wrap">
@@ -153,9 +131,9 @@
                 <thead>
                   <tr>
                     <th>OS</th>
+                    <th>Nota fiscal</th>
                     <th>Cliente</th>
                     <th>Placa</th>
-                    <th>KM</th>
                     <th>Valor</th>
                     <th>Pagamento</th>
                     <th>Data inicial</th>
@@ -205,13 +183,73 @@
             </div>
           </section>
         </section>
+
+        <section class="view" id="configuracoesView">
+          <section class="panel settings-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Configurações da empresa</h2>
+                <p>Dados usados nos relatórios exportados e na OS.</p>
+              </div>
+            </div>
+            <form id="companyForm" class="settings-form">
+              <div class="form-grid">
+                <label class="wide">
+                  Nome da empresa
+                  <input id="companyName" placeholder="Ex.: Minha Oficina LTDA" />
+                </label>
+                <label>
+                  CNPJ
+                  <input id="companyCnpj" placeholder="00.000.000/0000-00" />
+                </label>
+                <label>
+                  Número/telefone
+                  <input id="companyNumber" placeholder="(11) 0000-0000" />
+                </label>
+                <label class="wide">
+                  Logo da empresa
+                  <input id="companyLogo" type="file" accept="image/*" />
+                </label>
+              </div>
+              <div class="logo-settings">
+                <div class="logo-preview" id="logoPreview">
+                  <span id="logoEmpty">Sem logo cadastrada</span>
+                  <img id="logoImage" alt="Logo da empresa" />
+                </div>
+                <div class="logo-actions">
+                  <button class="secondary" id="removeLogo" type="button">Remover logo</button>
+                  <button class="primary" type="submit">Salvar configurações</button>
+                </div>
+              </div>
+            </form>
+          </section>
+        </section>
       </main>
     </div>
+
+    <dialog id="exportModal">
+      <form method="dialog" class="modal-form export-form">
+        <header>
+          <h2>Exportar notas</h2>
+          <button class="icon-button" value="cancel" type="button" data-close="exportModal" aria-label="Fechar">×</button>
+        </header>
+        <div class="export-options">
+          <button class="secondary export-choice" type="button" data-export-format="pdf">
+            <strong>PDF</strong>
+            <span>Abre uma versão para imprimir ou salvar em PDF.</span>
+          </button>
+          <button class="secondary export-choice" type="button" data-export-format="excel">
+            <strong>Excel</strong>
+            <span>Baixa a planilha das notas em formato XLS.</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="invoiceModal">
       <form id="invoiceForm" method="dialog" class="modal-form">
         <header>
-          <h2 id="invoiceModalTitle">Nova OS</h2>
+          <h2 id="invoiceModalTitle">Nova nota</h2>
           <button class="icon-button" value="cancel" type="button" data-close="invoiceModal" aria-label="Fechar">×</button>
         </header>
         <input type="hidden" id="invoiceId" />
@@ -219,6 +257,10 @@
           <label>
             OS
             <input id="serviceOrder" required placeholder="Ex.: 472" />
+          </label>
+          <label>
+            Nota fiscal
+            <input id="fiscalNote" placeholder="Ex.: NF 123456" />
           </label>
           <label>
             Cliente
@@ -229,23 +271,17 @@
             <input id="plate" placeholder="Ex.: ABC1D23" />
           </label>
           <label>
-            KM do veiculo
-            <input id="vehicleKm" inputmode="numeric" placeholder="Ex.: 125000" />
-          </label>
-          <label>
             Valor
             <input id="amount" required inputmode="decimal" placeholder="Ex.: 600,00" />
           </label>
           <label>
             Forma de pagamento
             <select id="paymentMethod">
-              <option value="PIX">PIX</option>
-              <option value="PARCELADO">Parcelado</option>
-              <option value="30D">30D</option>
-              <option value="Boleto">Boleto</option>
-              <option value="Cartão">Cartão</option>
-              <option value="Dinheiro">Dinheiro</option>
-              <option value="Transferência">Transferência</option>
+              <option>PIX</option>
+              <option>Boleto</option>
+              <option>Cartão</option>
+              <option>Dinheiro</option>
+              <option>Transferência</option>
             </select>
           </label>
           <label>
@@ -256,14 +292,14 @@
             Prazo em dias
             <input id="termDays" type="number" min="0" step="1" placeholder="Ex.: 10" />
           </label>
-          <label id="paidGroup">
+          <label>
             Pago?
             <select id="paid">
               <option value="false">Não</option>
               <option value="true">Sim</option>
             </select>
           </label>
-          <label id="paidDateGroup">
+          <label>
             Data de pagamento
             <input id="paidDate" type="date" />
           </label>
@@ -271,54 +307,12 @@
             Status operacional
             <input id="operationStatus" placeholder="Ex.: EM DIAGNÓSTICO, FALTA NOTA" />
           </label>
-          <label class="wide">
-            O que foi feito
-            <textarea id="workDone" placeholder="Ex.: Diagnostico, regulagem, limpeza, teste final"></textarea>
-          </label>
-          <label class="wide">
-            O que foi trocado
-            <textarea id="partsChanged" placeholder="Ex.: Pastilhas, filtro, sensor, oleo"></textarea>
-          </label>
-          <div class="wide form-section installment-section" id="installmentSection" hidden>
-            <div class="section-heading">
-              <strong>Parcelas</strong>
-              <span>Marque as parcelas que ja foram pagas.</span>
-            </div>
-            <label>
-              Quantidade de parcelas
-              <input id="installmentCount" type="number" min="1" max="36" step="1" placeholder="Ex.: 3" />
-            </label>
-            <div id="installmentList" class="installment-list"></div>
-          </div>
-          <label class="wide">
-            Anexar imagens da OS
-            <input id="invoiceImages" type="file" accept="image/*" multiple />
-          </label>
-          <div class="wide image-preview-grid" id="invoiceImagePreview"></div>
         </div>
         <footer>
           <button class="secondary" value="cancel" type="button" data-close="invoiceModal">Cancelar</button>
-          <button class="primary" type="submit">Salvar OS</button>
+          <button class="primary" type="submit">Salvar nota</button>
         </footer>
       </form>
-    </dialog>
-
-    <dialog id="invoiceDetailModal" class="detail-dialog">
-      <article class="detail-shell">
-        <header>
-          <div>
-            <p class="eyebrow">Ficha da OS</p>
-            <h2 id="invoiceDetailTitle">Detalhes</h2>
-          </div>
-          <button class="icon-button" type="button" data-close="invoiceDetailModal" aria-label="Fechar">×</button>
-        </header>
-        <div id="invoiceDetailContent" class="detail-content"></div>
-        <footer>
-          <button class="secondary" type="button" data-close="invoiceDetailModal">Fechar</button>
-          <button class="secondary" type="button" id="printInvoiceFromDetail">Imprimir OS</button>
-          <button class="primary" type="button" id="editInvoiceFromDetail">Editar OS</button>
-        </footer>
-      </article>
     </dialog>
 
     <dialog id="clientModal">
