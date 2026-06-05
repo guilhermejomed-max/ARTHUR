@@ -97,6 +97,10 @@ body.signed-in .auth-screen {
   font-size: 0.9rem;
 }
 
+.auth-message.success {
+  color: var(--green);
+}
+
 button,
 input,
 select {
@@ -439,8 +443,13 @@ table {
   border-collapse: collapse;
 }
 
-.table-wrap:not(.compact) table {
+.invoice-table {
   min-width: 1495px;
+  table-layout: fixed;
+}
+
+.client-table {
+  min-width: 1320px;
   table-layout: fixed;
 }
 
@@ -470,66 +479,125 @@ td {
   font-size: 0.92rem;
 }
 
-.table-wrap:not(.compact) table th:nth-child(1),
-.table-wrap:not(.compact) table td:nth-child(1) {
+.invoice-table th:nth-child(1),
+.invoice-table td:nth-child(1) {
   width: 70px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(2),
-.table-wrap:not(.compact) table td:nth-child(2) {
+.invoice-table th:nth-child(2),
+.invoice-table td:nth-child(2) {
   width: 95px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(3),
-.table-wrap:not(.compact) table td:nth-child(3) {
+.invoice-table th:nth-child(3),
+.invoice-table td:nth-child(3) {
   width: 260px;
   white-space: normal;
 }
 
-.table-wrap:not(.compact) table th:nth-child(4),
-.table-wrap:not(.compact) table td:nth-child(4) {
+.invoice-table th:nth-child(4),
+.invoice-table td:nth-child(4) {
   width: 90px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(5),
-.table-wrap:not(.compact) table td:nth-child(5) {
+.invoice-table th:nth-child(5),
+.invoice-table td:nth-child(5) {
   width: 95px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(6),
-.table-wrap:not(.compact) table td:nth-child(6) {
+.invoice-table th:nth-child(6),
+.invoice-table td:nth-child(6) {
   width: 110px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(7),
-.table-wrap:not(.compact) table td:nth-child(7) {
+.invoice-table th:nth-child(7),
+.invoice-table td:nth-child(7) {
   width: 110px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(8),
-.table-wrap:not(.compact) table td:nth-child(8) {
+.invoice-table th:nth-child(8),
+.invoice-table td:nth-child(8) {
   width: 85px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(9),
-.table-wrap:not(.compact) table td:nth-child(9) {
+.invoice-table th:nth-child(9),
+.invoice-table td:nth-child(9) {
   width: 65px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(10),
-.table-wrap:not(.compact) table td:nth-child(10) {
+.invoice-table th:nth-child(10),
+.invoice-table td:nth-child(10) {
   width: 106px;
 }
 
-.table-wrap:not(.compact) table th:nth-child(11),
-.table-wrap:not(.compact) table td:nth-child(11) {
+.invoice-table th:nth-child(11),
+.invoice-table td:nth-child(11) {
   width: 170px;
   white-space: normal;
 }
 
-.table-wrap:not(.compact) table th:nth-child(12),
-.table-wrap:not(.compact) table td:nth-child(12) {
+.invoice-table th:nth-child(12),
+.invoice-table td:nth-child(12) {
   width: 276px;
+}
+
+.client-table th,
+.client-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.client-table th:nth-child(1),
+.client-table td:nth-child(1) {
+  width: 140px;
+}
+
+.client-table th:nth-child(2),
+.client-table td:nth-child(2) {
+  width: 250px;
+}
+
+.client-table th:nth-child(3),
+.client-table td:nth-child(3) {
+  width: 255px;
+}
+
+.client-table th:nth-child(4),
+.client-table td:nth-child(4) {
+  width: 58px;
+  text-align: center;
+}
+
+.client-table th:nth-child(5),
+.client-table td:nth-child(5) {
+  width: 100px;
+}
+
+.client-table th:nth-child(6),
+.client-table td:nth-child(6) {
+  width: 180px;
+}
+
+.client-table th:nth-child(7),
+.client-table td:nth-child(7) {
+  width: 130px;
+}
+
+.client-table th:nth-child(8),
+.client-table td:nth-child(8) {
+  width: 58px;
+  text-align: center;
+}
+
+.client-table th:nth-child(9),
+.client-table td:nth-child(9) {
+  width: 130px;
+}
+
+.client-table th:nth-child(10),
+.client-table td:nth-child(10) {
+  width: 130px;
 }
 
 tbody tr:hover {

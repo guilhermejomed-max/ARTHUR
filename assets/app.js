@@ -4,6 +4,15 @@ const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 const MAX_INVOICE_IMAGE_SIZE = 3 * 1024 * 1024;
 const MAX_INVOICE_IMAGES = 8;
 const INVOICE_IMAGE_MAX_DIMENSION = 1400;
+const FIREBASE_SDK_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+const FIREBASE_AUTH_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  appId: "",
+};
 
 const defaultSettings = {
   companyName: "",
@@ -93,6 +102,8 @@ seedData.invoices = [
 let state = loadData();
 let currentInvoiceImages = [];
 let currentSummaryInvoiceId = "";
+let firebaseAuth = null;
+let firebaseAuthApi = null;
 
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -133,6 +144,13 @@ const els = {
   invoiceSummaryContent: document.querySelector("#invoiceSummaryContent"),
   summaryEditInvoice: document.querySelector("#summaryEditInvoice"),
   summaryPrintInvoice: document.querySelector("#summaryPrintInvoice"),
+  authForm: document.querySelector("#authForm"),
+  authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
+  authSignup: document.querySelector("#authSignup"),
+  authMessage: document.querySelector("#authMessage"),
+  userBadge: document.querySelector("#userBadge"),
+  logoutButton: document.querySelector("#logoutButton"),
 };
 
 function makeId() {
@@ -198,6 +216,92 @@ function normalizeState(data) {
 
 function isValidStoredState(data) {
   return Boolean(data && (data.schemaVersion >= 2 || hasUsefulData(data)));
+}
+
+function hasFirebaseConfig() {
+  return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
+}
+
+function setAuthMessage(message, isError = true) {
+  if (!els.authMessage) return;
+  els.authMessage.textContent = message;
+  els.authMessage.classList.toggle("success", !isError && Boolean(message));
+}
+
+function setAuthState(user) {
+  document.body.classList.remove("auth-loading");
+  document.body.classList.toggle("signed-in", Boolean(user));
+  document.body.classList.toggle("signed-out", !user);
+
+  if (els.userBadge) {
+    els.userBadge.hidden = !user;
+    els.userBadge.textContent = user?.email || "";
+  }
+}
+
+function authErrorMessage(error) {
+  const code = error?.code || "";
+  if (code.includes("invalid-email")) return "Informe um e-mail válido.";
+  if (code.includes("missing-password")) return "Informe a senha.";
+  if (code.includes("weak-password")) return "Use uma senha com pelo menos 6 caracteres.";
+  if (code.includes("email-already-in-use")) return "Este e-mail já está cadastrado.";
+  if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
+    return "E-mail ou senha incorretos.";
+  }
+  if (code.includes("network-request-failed")) return "Não foi possível conectar ao Firebase.";
+  return "Não foi possível autenticar agora.";
+}
+
+async function initAuth() {
+  if (!hasFirebaseConfig()) {
+    setAuthState(null);
+    setAuthMessage("Configure o firebaseConfig em assets/app.js para ativar login e cadastro.");
+    return;
+  }
+
+  try {
+    const [{ initializeApp }, authModule] = await Promise.all([import(FIREBASE_SDK_URL), import(FIREBASE_AUTH_URL)]);
+    const app = initializeApp(firebaseConfig);
+    firebaseAuth = authModule.getAuth(app);
+    firebaseAuthApi = authModule;
+    authModule.onAuthStateChanged(firebaseAuth, (user) => {
+      setAuthState(user);
+      if (user) setAuthMessage("");
+    });
+  } catch (error) {
+    console.warn("Nao foi possivel iniciar o Firebase.", error);
+    setAuthState(null);
+    setAuthMessage("Não foi possível carregar o Firebase. Verifique a internet e as chaves do projeto.");
+  }
+}
+
+async function signIn() {
+  if (!firebaseAuth || !firebaseAuthApi) {
+    setAuthMessage("Configure o Firebase antes de entrar.");
+    return;
+  }
+
+  try {
+    setAuthMessage("");
+    await firebaseAuthApi.signInWithEmailAndPassword(firebaseAuth, els.authEmail.value.trim(), els.authPassword.value);
+  } catch (error) {
+    setAuthMessage(authErrorMessage(error));
+  }
+}
+
+async function signUp() {
+  if (!firebaseAuth || !firebaseAuthApi) {
+    setAuthMessage("Configure o Firebase antes de criar cadastro.");
+    return;
+  }
+
+  try {
+    setAuthMessage("");
+    await firebaseAuthApi.createUserWithEmailAndPassword(firebaseAuth, els.authEmail.value.trim(), els.authPassword.value);
+    setAuthMessage("Cadastro criado com sucesso.", false);
+  } catch (error) {
+    setAuthMessage(authErrorMessage(error));
+  }
 }
 
 function hasUsefulData(data) {
@@ -1687,6 +1791,20 @@ document.querySelector("#openClientModal").addEventListener("click", () => {
   openDialog("clientModal");
 });
 
+els.authForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  signIn();
+});
+
+els.authSignup?.addEventListener("click", () => {
+  signUp();
+});
+
+els.logoutButton?.addEventListener("click", async () => {
+  if (!firebaseAuth || !firebaseAuthApi) return;
+  await firebaseAuthApi.signOut(firebaseAuth);
+});
+
 document.querySelectorAll("[data-close]").forEach((button) => {
   button.addEventListener("click", () => closeDialog(button.dataset.close));
 });
@@ -2007,4 +2125,5 @@ document.querySelector("#importData").addEventListener("change", async (event) =
   }
 });
 
+initAuth();
 render();

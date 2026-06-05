@@ -4,9 +4,38 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestor de Notas Fiscais</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260605-11" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260605-12" />
   </head>
-  <body>
+  <body class="auth-loading">
+    <section class="auth-screen" aria-labelledby="authTitle">
+      <form id="authForm" class="auth-card">
+        <div class="brand">
+          <span class="brand-mark">NF</span>
+          <div>
+            <strong>Gestor NF</strong>
+            <small>Acesso seguro</small>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Firebase Auth</p>
+          <h1 id="authTitle">Entrar no sistema</h1>
+        </div>
+        <label>
+          E-mail
+          <input id="authEmail" type="email" autocomplete="email" required placeholder="seuemail@empresa.com" />
+        </label>
+        <label>
+          Senha
+          <input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Mínimo de 6 caracteres" />
+        </label>
+        <div class="auth-actions">
+          <button class="primary" id="authLogin" type="submit">Entrar</button>
+          <button class="secondary" id="authSignup" type="button">Criar cadastro</button>
+        </div>
+        <p id="authMessage" class="auth-message"></p>
+      </form>
+    </section>
+
     <div class="app-shell" id="appShell">
       <aside class="sidebar">
         <div class="brand">
@@ -42,6 +71,8 @@
             <h1>Notas fiscais de clientes</h1>
           </div>
           <div class="top-actions">
+            <span class="user-badge" id="userBadge" hidden></span>
+            <button id="logoutButton" class="secondary" type="button">Sair</button>
             <button id="openClientModal" class="secondary" type="button">Novo cliente</button>
             <button id="openInvoiceModal" class="primary" type="button">Nova nota</button>
           </div>
@@ -127,7 +158,7 @@
               </div>
             </div>
             <div class="table-wrap">
-              <table>
+              <table class="invoice-table">
                 <thead>
                   <tr>
                     <th>OS</th>
@@ -163,7 +194,7 @@
               </div>
             </div>
             <div class="table-wrap">
-              <table>
+              <table class="client-table">
                 <thead>
                   <tr>
                     <th>CPF/CNPJ</th>
@@ -400,6 +431,6 @@
     </dialog>
 
     <div id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="assets/app.js?v=20260605-11"></script>
+    <script type="module" src="assets/app.js?v=20260605-12"></script>
   </body>
 </html>
