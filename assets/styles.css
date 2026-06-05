@@ -35,12 +35,12 @@ body.signed-in .auth-screen {
 
 .auth-screen {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
-  gap: clamp(28px, 5vw, 72px);
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 1fr);
+  gap: 0;
   min-height: 100vh;
-  align-items: center;
-  justify-items: end;
-  padding: clamp(22px, 4vw, 64px);
+  align-items: stretch;
+  justify-items: stretch;
+  padding: 0;
   background:
     radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.46), transparent 32%),
     radial-gradient(circle at 82% 12%, rgba(32, 134, 95, 0.38), transparent 30%),
@@ -53,16 +53,16 @@ body.signed-in .auth-screen {
 .auth-visual {
   position: relative;
   display: grid;
-  width: min(760px, 100%);
-  min-height: min(620px, calc(100vh - 96px));
-  align-self: stretch;
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background:
     linear-gradient(135deg, rgba(13, 24, 48, 0.1), rgba(28, 49, 95, 0.2)),
     rgba(255, 255, 255, 0.08);
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
 }
 
 .auth-visual img {
@@ -106,6 +106,8 @@ body.signed-in .auth-screen {
 }
 
 .auth-card {
+  align-self: center;
+  justify-self: center;
   display: grid;
   width: min(430px, 100%);
   gap: 16px;
@@ -1156,9 +1158,14 @@ dialog::backdrop {
   }
 
   .auth-visual {
-    width: min(520px, 100%);
-    min-height: 260px;
+    width: 100%;
+    height: 280px;
+    min-height: 280px;
     align-self: auto;
+  }
+
+  .auth-card {
+    margin: 22px;
   }
 
   .app-shell {
@@ -1194,11 +1201,12 @@ dialog::backdrop {
 
 @media (max-width: 720px) {
   .auth-screen {
-    padding: 18px;
+    padding: 0;
   }
 
   .auth-visual {
-    min-height: 200px;
+    height: 220px;
+    min-height: 220px;
   }
 
   .auth-visual-caption {
