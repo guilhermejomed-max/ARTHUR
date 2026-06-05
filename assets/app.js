@@ -124,6 +124,8 @@ const els = {
   removeLogo: document.querySelector("#removeLogo"),
   invoiceImages: document.querySelector("#invoiceImages"),
   invoiceImagePreview: document.querySelector("#invoiceImagePreview"),
+  installmentsLabel: document.querySelector("#installmentsLabel"),
+  installments: document.querySelector("#installments"),
   invoiceSummaryModal: document.querySelector("#invoiceSummaryModal"),
   invoiceSummaryTitle: document.querySelector("#invoiceSummaryTitle"),
   invoiceSummaryContent: document.querySelector("#invoiceSummaryContent"),
@@ -382,6 +384,7 @@ function renderInvoices() {
         <td>
           <div class="actions-cell">
             <button class="ghost" type="button" data-view-invoice="${invoice.id}">Ver OS</button>
+            <button class="ghost" type="button" data-print-os="${invoice.id}">Imprimir/PDF</button>
             <button class="ghost" type="button" data-edit-invoice="${invoice.id}">Editar</button>
             <button class="danger" type="button" data-delete-invoice="${invoice.id}">Excluir</button>
           </div>
@@ -599,6 +602,7 @@ function resetInvoiceForm(invoice = null) {
   document.querySelector("#amount").value = invoice ? String(invoice.amount).replace(".", ",") : "";
   document.querySelector("#paymentMethod").value = invoice?.paymentMethod || "PIX";
   document.querySelector("#installments").value = invoice?.installments || "";
+  updateInstallmentsVisibility();
   document.querySelector("#startDate").value = invoice?.startDate || new Date().toISOString().slice(0, 10);
   document.querySelector("#termDays").value = invoice?.termDays ?? "";
   document.querySelector("#paid").value = String(Boolean(invoice?.paid));
@@ -784,7 +788,19 @@ function formatKm(value) {
   return `${Number(value || 0).toLocaleString("pt-BR")} km`;
 }
 
+function isInstallmentPayment(invoiceOrMethod) {
+  const method = typeof invoiceOrMethod === "string" ? invoiceOrMethod : invoiceOrMethod?.paymentMethod;
+  return normalize(method).includes("parcelado");
+}
+
+function updateInstallmentsVisibility() {
+  const isParcelado = isInstallmentPayment(document.querySelector("#paymentMethod").value);
+  els.installmentsLabel.hidden = !isParcelado;
+  if (!isParcelado) els.installments.value = "";
+}
+
 function installmentLabel(invoice) {
+  if (!isInstallmentPayment(invoice)) return "";
   const installments = Number(invoice.installments || 0);
   if (!installments) return "-";
   if (installments === 1) return "1 parcela";
@@ -845,6 +861,9 @@ function openInvoiceSummary(invoiceId) {
   const dueDate = addDays(invoice.startDate, invoice.termDays);
   const status = getInvoiceStatus(invoice);
   const images = invoice.images || [];
+  const installmentsRow = isInstallmentPayment(invoice)
+    ? `<div><dt>Parcelas</dt><dd>${installmentLabel(invoice)}</dd></div>`
+    : "";
   currentSummaryInvoiceId = invoice.id;
   els.invoiceSummaryTitle.textContent = `Resumo da OS ${invoice.serviceOrder}`;
   els.invoiceSummaryContent.innerHTML = `
@@ -890,7 +909,7 @@ function openInvoiceSummary(invoiceId) {
         <dl>
           <div><dt>Valor total</dt><dd>${formatMoney(invoice.amount)}</dd></div>
           <div><dt>Forma</dt><dd>${escapeHtml(invoice.paymentMethod || "-")}</dd></div>
-          <div><dt>Parcelas</dt><dd>${installmentLabel(invoice)}</dd></div>
+          ${installmentsRow}
           <div><dt>Pago?</dt><dd>${invoice.paid ? "Sim" : "Não"}</dd></div>
         </dl>
       </article>
@@ -925,6 +944,14 @@ function printServiceOrder(invoiceId) {
   const client = getClient(invoice.clientId);
   const dueDate = addDays(invoice.startDate, invoice.termDays);
   const status = getInvoiceStatus(invoice);
+  const printInstallmentsField = isInstallmentPayment(invoice)
+    ? `
+            <div class="field-item highlight-field">
+              <span>Parcelas</span>
+              <strong>${installmentLabel(invoice)}</strong>
+            </div>
+      `
+    : "";
   const clientAddress = [
     client?.address,
     client?.number ? `Nº ${client.number}` : "",
@@ -1019,10 +1046,7 @@ function printServiceOrder(invoiceId) {
               <span>Forma</span>
               <strong>${escapeHtml(invoice.paymentMethod || "-")}</strong>
             </div>
-            <div>
-              <span>Parcelas</span>
-              <strong>${installmentLabel(invoice)}</strong>
-            </div>
+            ${printInstallmentsField}
             <div>
               <span>Pago?</span>
               <strong>${invoice.paid ? "Sim" : "Não"}</strong>
@@ -1058,7 +1082,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
         <meta charset="utf-8" />
         <title>${escapeHtml(title)}</title>
         <style>
-          @page { size: A4 ${orientation}; margin: ${orientation === "portrait" ? "14mm" : "10mm"}; }
+          @page { size: A4 ${orientation}; margin: ${orientation === "portrait" ? "13mm" : "10mm"}; }
           * {
             box-sizing: border-box;
             -webkit-print-color-adjust: exact;
@@ -1069,29 +1093,32 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             color: #101828;
             background: #ffffff;
             font-family: Arial, "Segoe UI", sans-serif;
-            font-size: 12.5px;
-            line-height: 1.45;
+            font-size: 13px;
+            line-height: 1.48;
+          }
+          .document-page {
+            width: 100%;
           }
           .company-header {
             display: grid;
-            grid-template-columns: 116px minmax(0, 1fr);
-            gap: 18px;
+            grid-template-columns: 124px minmax(0, 1fr);
+            gap: 20px;
             align-items: center;
-            padding: 14px 16px;
-            border: 1px solid #c7d2e1;
-            border-left: 8px solid #1c315f;
-            border-radius: 10px;
-            background: #f8fafc;
+            padding: 16px 18px;
+            border: 1px solid #b8c7dc;
+            border-left: 10px solid #1c315f;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
           }
           .company-logo {
             display: grid;
             width: 100%;
-            height: 82px;
+            height: 90px;
             place-items: center;
             object-fit: contain;
             padding: 8px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
+            border: 1px solid #b8c7dc;
+            border-radius: 10px;
             color: #687386;
             background: #ffffff;
             font-weight: 700;
@@ -1102,7 +1129,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           .company-header strong {
             display: block;
             color: #111827;
-            font-size: 22px;
+            font-size: 23px;
             line-height: 1.15;
             text-transform: uppercase;
           }
@@ -1117,21 +1144,23 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             align-items: flex-end;
             justify-content: space-between;
             gap: 20px;
-            margin: 20px 0 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #d0d5dd;
+            margin: 18px 0 16px;
+            padding: 16px 18px;
+            border-radius: 12px;
+            color: #ffffff;
+            background: #1c315f;
           }
           h1 {
             margin: 0;
-            color: #1c315f;
-            font-size: 25px;
+            color: #ffffff;
+            font-size: 26px;
             line-height: 1.1;
             text-transform: uppercase;
           }
           .subtitle {
             margin: 6px 0 0;
-            color: #667085;
-            font-size: 12px;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 12.5px;
           }
           table {
             width: 100%;
@@ -1161,15 +1190,15 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: grid;
             grid-template-columns: 1.15fr 1fr 1fr 1fr;
             gap: 12px;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
           }
           .summary-block {
-            min-height: 78px;
-            padding: 12px 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            min-height: 82px;
+            padding: 13px 15px;
+            border: 1px solid #b8c7dc;
+            border-radius: 12px;
             background: #ffffff;
-            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.06);
+            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
           }
           .summary-primary {
             color: #ffffff;
@@ -1191,7 +1220,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: block;
             margin-top: 8px;
             color: #111827;
-            font-size: 20px;
+            font-size: 20.5px;
             line-height: 1.1;
             word-break: break-word;
           }
@@ -1219,9 +1248,10 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             background: #fff7df;
           }
           .section-title {
-            margin: 8px 0 10px;
-            padding: 7px 10px;
-            border-left: 5px solid #1c315f;
+            margin: 10px 0 10px;
+            padding: 8px 11px;
+            border-left: 6px solid #1c315f;
+            border-radius: 8px;
             color: #1c315f;
             background: #eef4ff;
             font-size: 12px;
@@ -1237,11 +1267,11 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           .detail-card,
           .notes-box {
             min-height: 130px;
-            padding: 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #b8c7dc;
+            border-radius: 12px;
             background: #ffffff;
-            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.05);
+            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06);
           }
           .detail-card.wide {
             grid-column: 1 / -1;
@@ -1249,7 +1279,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           h2 {
             margin: 0 0 12px;
             color: #1c315f;
-            font-size: 13.5px;
+            font-size: 14px;
             text-transform: uppercase;
           }
           p {
@@ -1264,17 +1294,21 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             grid-template-columns: 1fr 1fr;
           }
           .field-list div {
-            min-height: 48px;
-            padding: 9px 10px;
-            border: 1px solid #e4e9f2;
+            min-height: 50px;
+            padding: 10px 11px;
+            border: 1px solid #dbe4ef;
             border-radius: 8px;
-            background: #f9fbfd;
+            background: #f8fbff;
+          }
+          .field-list div.highlight-field {
+            border-color: #b6cdf6;
+            background: #eef4ff;
           }
           .field-list strong {
             display: block;
             margin-top: 5px;
             color: #111827;
-            font-size: 13px;
+            font-size: 13.2px;
             line-height: 1.35;
             word-break: break-word;
           }
@@ -1288,20 +1322,20 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .notes-box p {
             min-height: 70px;
-            padding: 10px;
-            border: 1px solid #e4e9f2;
+            padding: 11px;
+            border: 1px solid #dbe4ef;
             border-radius: 8px;
-            background: #f9fbfd;
+            background: #f8fbff;
             color: #1f2937;
-            font-size: 13px;
+            font-size: 13.2px;
           }
           .print-images {
             margin-top: 12px;
-            padding: 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #b8c7dc;
+            border-radius: 12px;
             background: #ffffff;
-            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.05);
+            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06);
             page-break-inside: avoid;
           }
           .print-image-grid {
@@ -1311,18 +1345,19 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .print-image-grid figure {
             margin: 0;
-            padding: 8px;
-            border: 1px solid #e4e9f2;
-            border-radius: 8px;
-            background: #f9fbfd;
+            padding: 9px;
+            border: 1px solid #dbe4ef;
+            border-radius: 10px;
+            background: #f8fbff;
             page-break-inside: avoid;
           }
           .print-image-grid img {
             display: block;
             width: 100%;
-            max-height: 220px;
+            max-height: 260px;
             object-fit: contain;
-            border-radius: 6px;
+            border: 1px solid #eef2f7;
+            border-radius: 8px;
             background: #ffffff;
           }
           .print-image-grid figcaption {
@@ -1374,14 +1409,16 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
         </style>
       </head>
       <body>
-        ${buildCompanyHeaderHtml()}
-        <section class="document-title">
-          <div>
-            <h1>${escapeHtml(title)}</h1>
-            <p class="subtitle">${escapeHtml(subtitle)}</p>
-          </div>
-        </section>
-        ${content}
+        <main class="document-page">
+          ${buildCompanyHeaderHtml()}
+          <section class="document-title">
+            <div>
+              <h1>${escapeHtml(title)}</h1>
+              <p class="subtitle">${escapeHtml(subtitle)}</p>
+            </div>
+          </section>
+          ${content}
+        </main>
         <div class="print-actions">
           <button type="button" onclick="window.print()">Imprimir / salvar PDF</button>
         </div>
@@ -1505,7 +1542,11 @@ document.querySelector("#invoiceForm").addEventListener("submit", async (event) 
     vehicleKm: document.querySelector("#vehicleKm").value === "" ? "" : Number(document.querySelector("#vehicleKm").value),
     amount: parseMoney(document.querySelector("#amount").value),
     paymentMethod: document.querySelector("#paymentMethod").value,
-    installments: document.querySelector("#installments").value === "" ? "" : Number(document.querySelector("#installments").value),
+    installments: isInstallmentPayment(document.querySelector("#paymentMethod").value)
+      ? document.querySelector("#installments").value === ""
+        ? ""
+        : Number(document.querySelector("#installments").value)
+      : "",
     startDate: document.querySelector("#startDate").value,
     termDays: document.querySelector("#termDays").value === "" ? "" : Number(document.querySelector("#termDays").value),
     paid: document.querySelector("#paid").value === "true",
@@ -1714,6 +1755,8 @@ document.querySelector("#paid").addEventListener("change", (event) => {
     paidDate.value = new Date().toISOString().slice(0, 10);
   }
 });
+
+document.querySelector("#paymentMethod").addEventListener("change", updateInstallmentsVisibility);
 
 els.summaryPrintInvoice.addEventListener("click", () => {
   if (currentSummaryInvoiceId) printServiceOrder(currentSummaryInvoiceId);

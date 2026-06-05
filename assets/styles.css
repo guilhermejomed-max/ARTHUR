@@ -433,7 +433,7 @@ footer {
 
 table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 1260px;
   border-collapse: collapse;
 }
 
@@ -486,7 +486,7 @@ tbody tr:hover {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  min-width: 190px;
+  min-width: 285px;
 }
 
 .status-pill {

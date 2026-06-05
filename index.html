@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestor de Notas Fiscais</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260605-4" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260605-6" />
   </head>
   <body>
     <div class="app-shell" id="appShell">
@@ -282,13 +282,14 @@
             Forma de pagamento
             <select id="paymentMethod">
               <option>PIX</option>
+              <option>Parcelado</option>
               <option>Boleto</option>
               <option>Cartão</option>
               <option>Dinheiro</option>
               <option>Transferência</option>
             </select>
           </label>
-          <label>
+          <label id="installmentsLabel" hidden>
             Quantidade de parcelas
             <input id="installments" type="number" min="1" step="1" placeholder="Ex.: 3" />
           </label>
@@ -337,7 +338,7 @@
         <div id="invoiceSummaryContent" class="summary-content"></div>
         <footer>
           <button class="secondary" id="summaryEditInvoice" type="button">Editar OS</button>
-          <button class="primary" id="summaryPrintInvoice" type="button">Imprimir OS</button>
+          <button class="primary" id="summaryPrintInvoice" type="button">Imprimir / salvar PDF</button>
         </footer>
       </div>
     </dialog>
@@ -395,6 +396,6 @@
     </dialog>
 
     <div id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="assets/app.js?v=20260605-4"></script>
+    <script type="module" src="assets/app.js?v=20260605-6"></script>
   </body>
 </html>
