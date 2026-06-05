@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestor de Notas Fiscais</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260605-23" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260605-25" />
   </head>
   <body class="auth-loading">
     <section class="auth-screen" aria-labelledby="authTitle">
@@ -151,6 +151,25 @@
             <select id="clientFilter" aria-label="Filtrar por cliente">
               <option value="todos">Todos os clientes</option>
             </select>
+          </section>
+
+          <section class="invoice-filter-summary" aria-label="Resumo do filtro atual">
+            <article>
+              <span>Notas na tela</span>
+              <strong id="filteredInvoiceCount">0</strong>
+            </article>
+            <article>
+              <span>Valores em aberto</span>
+              <strong id="filteredOpenValue">R$ 0,00</strong>
+            </article>
+            <article>
+              <span>Valores pagos</span>
+              <strong id="filteredPaidValue">R$ 0,00</strong>
+            </article>
+            <article>
+              <span>Vencidas</span>
+              <strong id="filteredOverdueValue">R$ 0,00</strong>
+            </article>
           </section>
 
           <section class="panel">
@@ -435,6 +454,6 @@
 
     <p class="creator-credit">Criado por Guilherme Martins</p>
     <div id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="assets/app.js?v=20260605-23"></script>
+    <script type="module" src="assets/app.js?v=20260605-25"></script>
   </body>
 </html>

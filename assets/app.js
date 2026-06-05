@@ -48,6 +48,10 @@ const els = {
   clientSearch: document.querySelector("#clientSearch"),
   statusFilter: document.querySelector("#statusFilter"),
   clientFilter: document.querySelector("#clientFilter"),
+  filteredInvoiceCount: document.querySelector("#filteredInvoiceCount"),
+  filteredOpenValue: document.querySelector("#filteredOpenValue"),
+  filteredPaidValue: document.querySelector("#filteredPaidValue"),
+  filteredOverdueValue: document.querySelector("#filteredOverdueValue"),
   storageCount: document.querySelector("#storageCount"),
   toast: document.querySelector("#toast"),
   exportModal: document.querySelector("#exportModal"),
@@ -115,12 +119,12 @@ function remoteStateRef() {
 
 function firestoreErrorMessage(error) {
   if (error?.code === "permission-denied") {
-    return "Sem permissão no Firestore. Publique regras permitindo usuários autenticados.";
+    return "Sem permissÃ£o no Firestore. Publique regras permitindo usuÃ¡rios autenticados.";
   }
   if (error?.code === "unavailable") {
-    return "Firestore indisponível agora. Tente novamente em instantes.";
+    return "Firestore indisponÃ­vel agora. Tente novamente em instantes.";
   }
-  return "Não foi possível acessar os dados do Firebase.";
+  return "NÃ£o foi possÃ­vel acessar os dados do Firebase.";
 }
 
 async function loadRemoteData() {
@@ -161,15 +165,15 @@ function setAuthState(user) {
 
 function authErrorMessage(error) {
   const code = error?.code || "";
-  if (code.includes("invalid-email")) return "Informe um e-mail válido.";
+  if (code.includes("invalid-email")) return "Informe um e-mail vÃ¡lido.";
   if (code.includes("missing-password")) return "Informe a senha.";
   if (code.includes("weak-password")) return "Use uma senha com pelo menos 6 caracteres.";
-  if (code.includes("email-already-in-use")) return "Este e-mail já está cadastrado.";
+  if (code.includes("email-already-in-use")) return "Este e-mail jÃ¡ estÃ¡ cadastrado.";
   if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
     return "E-mail ou senha incorretos.";
   }
-  if (code.includes("network-request-failed")) return "Não foi possível conectar ao Firebase.";
-  return "Não foi possível autenticar agora.";
+  if (code.includes("network-request-failed")) return "NÃ£o foi possÃ­vel conectar ao Firebase.";
+  return "NÃ£o foi possÃ­vel autenticar agora.";
 }
 
 async function initAuth() {
@@ -203,7 +207,7 @@ async function initAuth() {
   } catch (error) {
     console.warn("Nao foi possivel iniciar o Firebase.", error);
     setAuthState(null);
-    setAuthMessage("Não foi possível carregar o Firebase. Verifique a internet e as chaves do projeto.");
+    setAuthMessage("NÃ£o foi possÃ­vel carregar o Firebase. Verifique a internet e as chaves do projeto.");
   }
 }
 
@@ -396,8 +400,49 @@ function filteredInvoices() {
   });
 }
 
+function invoiceStats(invoices) {
+  const stats = {
+    count: invoices.length,
+    total: 0,
+    open: 0,
+    paid: 0,
+    overdue: 0,
+    openCount: 0,
+    paidCount: 0,
+    overdueCount: 0,
+  };
+
+  invoices.forEach((invoice) => {
+    const amount = Number(invoice.amount || 0);
+    const status = getInvoiceStatus(invoice);
+    stats.total += amount;
+    if (invoice.paid) {
+      stats.paid += amount;
+      stats.paidCount += 1;
+    } else {
+      stats.open += amount;
+      stats.openCount += 1;
+    }
+    if (status === "vencido") {
+      stats.overdue += amount;
+      stats.overdueCount += 1;
+    }
+  });
+
+  return stats;
+}
+
+function renderInvoiceFilterSummary(rows) {
+  const stats = invoiceStats(rows);
+  els.filteredInvoiceCount.textContent = String(stats.count);
+  els.filteredOpenValue.textContent = formatMoney(stats.open);
+  els.filteredPaidValue.textContent = formatMoney(stats.paid);
+  els.filteredOverdueValue.textContent = formatMoney(stats.overdue);
+}
+
 function renderInvoices() {
   const rows = filteredInvoices();
+  renderInvoiceFilterSummary(rows);
   els.invoiceTable.innerHTML = "";
 
   if (!rows.length) {
@@ -503,7 +548,7 @@ function renderDashboard() {
     .sort((a, b) => String(a.dueDate || "9999").localeCompare(String(b.dueDate || "9999")))
     .slice(0, 6);
 
-  els.dueList.innerHTML = dueRows.length ? "" : `<div class="empty">Não há notas abertas no momento.</div>`;
+  els.dueList.innerHTML = dueRows.length ? "" : `<div class="empty">NÃ£o hÃ¡ notas abertas no momento.</div>`;
 
   dueRows.forEach(({ invoice, dueDate }) => {
     const client = getClient(invoice.clientId);
@@ -512,8 +557,8 @@ function renderDashboard() {
     item.className = "due-item";
     item.innerHTML = `
       <div>
-        <strong>OS ${escapeHtml(invoice.serviceOrder)} · ${escapeHtml(client?.name || "Cliente")}</strong>
-        <span>${escapeHtml(invoice.fiscalNote || "Sem NF")} · ${escapeHtml(invoice.plate || "Sem placa")} · ${formatMoney(invoice.amount)} · ${escapeHtml(invoice.operationStatus || "Sem status")}</span>
+        <strong>OS ${escapeHtml(invoice.serviceOrder)} Â· ${escapeHtml(client?.name || "Cliente")}</strong>
+        <span>${escapeHtml(invoice.fiscalNote || "Sem NF")} Â· ${escapeHtml(invoice.plate || "Sem placa")} Â· ${formatMoney(invoice.amount)} Â· ${escapeHtml(invoice.operationStatus || "Sem status")}</span>
       </div>
       <span class="status-pill status-${status}">${dueDate ? formatDate(dueDate) : "Sem prazo"}</span>
     `;
@@ -530,7 +575,7 @@ function renderDashboard() {
     .filter((summary) => summary.total > 0)
     .sort((a, b) => b.total - a.total);
 
-  els.clientSummary.innerHTML = summaries.length ? "" : `<tr><td colspan="3" class="empty">Sem notas lançadas.</td></tr>`;
+  els.clientSummary.innerHTML = summaries.length ? "" : `<tr><td colspan="3" class="empty">Sem notas lanÃ§adas.</td></tr>`;
 
   summaries.forEach((summary) => {
     const row = document.createElement("tr");
@@ -588,7 +633,7 @@ function renderInvoiceImagePreview() {
       <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name || "Imagem da OS")}" />
       <div>
         <strong>${escapeHtml(image.name || "Imagem da OS")}</strong>
-        <span>Anexada à OS</span>
+        <span>Anexada Ã  OS</span>
       </div>
       <button class="danger" type="button" data-remove-invoice-image="${image.id}">Remover</button>
     `;
@@ -602,7 +647,7 @@ function render() {
   renderClients();
   renderDashboard();
   renderSettings();
-  els.storageCount.textContent = `${state.clients.length} clientes · ${state.invoices.length} notas`;
+  els.storageCount.textContent = `${state.clients.length} clientes Â· ${state.invoices.length} notas`;
 }
 
 function showToast(message) {
@@ -674,10 +719,10 @@ function resetClientForm(client = null) {
 
 function buildCompanyHeaderHtml(compact = false) {
   const settings = state.settings;
-  const companyName = settings.companyName || "Empresa não configurada";
+  const companyName = settings.companyName || "Empresa nÃ£o configurada";
   const details = [
     settings.companyCnpj ? `CNPJ: ${settings.companyCnpj}` : "",
-    settings.companyNumber ? `Número/telefone: ${settings.companyNumber}` : "",
+    settings.companyNumber ? `NÃºmero/telefone: ${settings.companyNumber}` : "",
   ].filter(Boolean);
 
   return `
@@ -689,7 +734,7 @@ function buildCompanyHeaderHtml(compact = false) {
       }
       <div>
         <strong>${escapeHtml(companyName)}</strong>
-        ${details.length ? `<span>${details.map(escapeHtml).join(" · ")}</span>` : `<span>Configure os dados da empresa no sistema.</span>`}
+        ${details.length ? `<span>${details.map(escapeHtml).join(" Â· ")}</span>` : `<span>Configure os dados da empresa no sistema.</span>`}
       </div>
     </header>
   `;
@@ -711,28 +756,45 @@ function exportRows() {
     });
 }
 
+function activeFilterLabels() {
+  const filters = [];
+  const search = els.invoiceSearch.value.trim();
+  if (search) filters.push(`Busca: ${search}`);
+  if (els.statusFilter.value !== "todos") {
+    filters.push(`SituaÃ§Ã£o: ${els.statusFilter.options[els.statusFilter.selectedIndex]?.textContent || els.statusFilter.value}`);
+  }
+  if (els.clientFilter.value !== "todos") {
+    filters.push(`Cliente: ${els.clientFilter.options[els.clientFilter.selectedIndex]?.textContent || els.clientFilter.value}`);
+  }
+  return filters.length ? filters : ["Sem filtros aplicados"];
+}
+
 function exportInvoicesPdf() {
   const rows = exportRows();
   if (!rows.length) {
-    showToast("Não há notas para exportar.");
+    showToast("NÃ£o hÃ¡ notas para exportar.");
     return;
   }
 
-  const total = rows.reduce((sum, item) => sum + Number(item.invoice.amount || 0), 0);
+  const stats = invoiceStats(rows.map((item) => item.invoice));
   const generatedAt = new Date().toLocaleString("pt-BR");
+  const filters = activeFilterLabels();
   const rowsHtml = rows
     .map(({ invoice, client, dueDate, status }) => {
       return `
         <tr>
           <td>${escapeHtml(invoice.serviceOrder)}</td>
           <td>${escapeHtml(invoice.fiscalNote || "-")}</td>
+          <td>${escapeHtml(client?.document || "-")}</td>
           <td>${escapeHtml(client?.name || "Cliente removido")}</td>
           <td>${escapeHtml(invoice.plate || "-")}</td>
           <td>${formatMoney(invoice.amount)}</td>
           <td>${escapeHtml(invoice.paymentMethod || "-")}</td>
           <td>${formatDate(invoice.startDate)}</td>
           <td>${dueDate ? formatDate(dueDate) : "-"}</td>
+          <td>${getDueDays(invoice)}</td>
           <td>${statusLabel(status)}</td>
+          <td>${invoice.paid ? "Sim" : "NÃƒÂ£o"}</td>
           <td>${escapeHtml(invoice.operationStatus || "-")}</td>
         </tr>
       `;
@@ -740,22 +802,38 @@ function exportInvoicesPdf() {
     .join("");
 
   const html = buildPrintableDocument({
-    title: "Relatório de notas",
-    subtitle: `Gerado em ${generatedAt} · Total: ${formatMoney(total)}`,
+    title: "RelatÃ³rio de notas",
+    subtitle: `Gerado em ${generatedAt} Â· Total: ${formatMoney(stats.total)}`,
     orientation: "landscape",
     content: `
       <section class="report-summary">
         <div>
           <span>Notas listadas</span>
-          <strong>${rows.length}</strong>
+          <strong>${stats.count}</strong>
         </div>
         <div>
-          <span>Total lançado</span>
-          <strong>${formatMoney(total)}</strong>
+          <span>Total lanÃ§ado</span>
+          <strong>${formatMoney(stats.total)}</strong>
+        </div>
+        <div>
+          <span>Valores em aberto</span>
+          <strong>${formatMoney(stats.open)}</strong>
+        </div>
+        <div>
+          <span>Valores pagos</span>
+          <strong>${formatMoney(stats.paid)}</strong>
+        </div>
+        <div>
+          <span>Vencidas</span>
+          <strong>${formatMoney(stats.overdue)}</strong>
         </div>
         <div>
           <span>Emitido em</span>
           <strong>${escapeHtml(generatedAt)}</strong>
+        </div>
+        <div>
+          <span>Filtros</span>
+          <strong>${escapeHtml(filters.join(" - "))}</strong>
         </div>
       </section>
       <div class="table-wrap-print">
@@ -764,13 +842,16 @@ function exportInvoicesPdf() {
           <tr>
             <th>OS</th>
             <th>Nota fiscal</th>
+            <th>CPF/CNPJ</th>
             <th>Cliente</th>
             <th>Placa</th>
             <th>Valor</th>
             <th>Pagamento</th>
             <th>Data inicial</th>
             <th>Prazo</th>
-            <th>Situação</th>
+            <th>Dias</th>
+            <th>SituaÃ§Ã£o</th>
+            <th>Pago?</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -781,17 +862,19 @@ function exportInvoicesPdf() {
   });
 
   openPrintDocument(html);
-  showToast("PDF aberto para impressão.");
+  showToast("PDF aberto para impressÃ£o.");
 }
 
 function exportInvoicesExcel() {
   const rows = exportRows();
   if (!rows.length) {
-    showToast("Não há notas para exportar.");
+    showToast("NÃ£o hÃ¡ notas para exportar.");
     return;
   }
 
   const settings = state.settings;
+  const stats = invoiceStats(rows.map((item) => item.invoice));
+  const filters = activeFilterLabels();
   const rowsHtml = rows
     .map(({ invoice, client, dueDate, status }) => {
       return `
@@ -805,7 +888,12 @@ function exportInvoicesExcel() {
           <td>${escapeHtml(invoice.paymentMethod || "")}</td>
           <td>${formatDate(invoice.startDate)}</td>
           <td>${dueDate ? formatDate(dueDate) : ""}</td>
+          <td>${getDueDays(invoice)}</td>
           <td>${statusLabel(status)}</td>
+          <td>${invoice.paid ? "Sim" : "Nao"}</td>
+          <td>${formatDate(invoice.paidDate)}</td>
+          <td>${formatKm(invoice.vehicleKm)}</td>
+          <td>${isInstallmentPayment(invoice) ? installmentLabel(invoice) : ""}</td>
           <td>${escapeHtml(invoice.operationStatus || "")}</td>
         </tr>
       `;
@@ -818,8 +906,11 @@ function exportInvoicesExcel() {
       <head><meta charset="utf-8" /></head>
       <body>
         <table>
-          <tr><td colspan="11"><strong>${escapeHtml(settings.companyName || "Gestor NF")}</strong></td></tr>
-          <tr><td colspan="11">${escapeHtml(settings.companyCnpj || "")} ${escapeHtml(settings.companyNumber || "")}</td></tr>
+          <tr><td colspan="15"><strong>${escapeHtml(settings.companyName || "Gestor NF")}</strong></td></tr>
+          <tr><td colspan="15">${escapeHtml(settings.companyCnpj || "")} ${escapeHtml(settings.companyNumber || "")}</td></tr>
+          <tr><td colspan="15"><strong>Exportacao da tela atual</strong></td></tr>
+          <tr><td>Filtros</td><td colspan="14">${escapeHtml(filters.join(" - "))}</td></tr>
+          <tr><td>Notas</td><td>${stats.count}</td><td>Total</td><td>${Number(stats.total || 0).toFixed(2)}</td><td>Em aberto</td><td>${Number(stats.open || 0).toFixed(2)}</td><td>Pagos</td><td>${Number(stats.paid || 0).toFixed(2)}</td><td>Vencidas</td><td>${Number(stats.overdue || 0).toFixed(2)}</td></tr>
           <tr></tr>
           <tr>
             <th>OS</th>
@@ -831,7 +922,12 @@ function exportInvoicesExcel() {
             <th>Pagamento</th>
             <th>Data inicial</th>
             <th>Prazo</th>
+            <th>Dias</th>
             <th>Situação</th>
+            <th>Pago?</th>
+            <th>Data pagamento</th>
+            <th>KM</th>
+            <th>Parcelas</th>
             <th>Status operacional</th>
           </tr>
           ${rowsHtml}
@@ -909,7 +1005,7 @@ async function informPayment(invoiceId) {
     showToast(`Pago parcela ${nextInstallment}/${installments}.`);
   } else {
     if (invoice.paid) {
-      showToast("Esta OS já está marcada como paga.");
+      showToast("Esta OS jÃ¡ estÃ¡ marcada como paga.");
       return;
     }
     invoice.paid = true;
@@ -986,7 +1082,7 @@ function openInvoiceSummary(invoiceId) {
   const installmentsRow = isInstallmentPayment(invoice)
     ? `<div><dt>Parcelas</dt><dd>${installmentLabel(invoice)}</dd></div>`
     : "";
-  const paidLabel = isInstallmentPayment(invoice) ? installmentLabel(invoice) : invoice.paid ? "Sim" : "Não";
+  const paidLabel = isInstallmentPayment(invoice) ? installmentLabel(invoice) : invoice.paid ? "Sim" : "NÃ£o";
   currentSummaryInvoiceId = invoice.id;
   els.invoiceSummaryTitle.textContent = `Resumo da OS ${invoice.serviceOrder}`;
   els.invoiceSummaryContent.innerHTML = `
@@ -1000,7 +1096,7 @@ function openInvoiceSummary(invoiceId) {
         <strong>${formatMoney(invoice.amount)}</strong>
       </div>
       <div>
-        <span>Situação</span>
+        <span>SituaÃ§Ã£o</span>
         <strong>${statusLabel(status)}</strong>
       </div>
       <div>
@@ -1019,7 +1115,7 @@ function openInvoiceSummary(invoiceId) {
         </dl>
       </article>
       <article>
-        <h3>Veículo e serviço</h3>
+        <h3>VeÃ­culo e serviÃ§o</h3>
         <dl>
           <div><dt>Placa</dt><dd>${escapeHtml(invoice.plate || "-")}</dd></div>
           <div><dt>KM</dt><dd>${formatKm(invoice.vehicleKm)}</dd></div>
@@ -1049,7 +1145,7 @@ function openInvoiceSummary(invoiceId) {
 
     <section class="summary-notes">
       <h3>Resumo do que foi feito</h3>
-      <p>${escapeHtml(invoice.operationStatus || "Sem observações registradas.")}</p>
+      <p>${escapeHtml(invoice.operationStatus || "Sem observaÃ§Ãµes registradas.")}</p>
     </section>
 
     <section class="summary-images">
@@ -1075,20 +1171,20 @@ function printServiceOrder(invoiceId) {
             </div>
       `
     : "";
-  const printPaidLabel = isInstallmentPayment(invoice) ? installmentLabel(invoice) : invoice.paid ? "Sim" : "Não";
+  const printPaidLabel = isInstallmentPayment(invoice) ? installmentLabel(invoice) : invoice.paid ? "Sim" : "NÃ£o";
   const clientAddress = [
     client?.address,
-    client?.number ? `Nº ${client.number}` : "",
+    client?.number ? `NÂº ${client.number}` : "",
     client?.district,
     client?.city,
     client?.state,
     client?.zip ? `CEP ${client.zip}` : "",
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(" Â· ");
 
   const html = buildPrintableDocument({
-    title: `Ordem de serviço ${invoice.serviceOrder}`,
+    title: `Ordem de serviÃ§o ${invoice.serviceOrder}`,
     subtitle: `Emitida em ${new Date().toLocaleDateString("pt-BR")}`,
     orientation: "portrait",
     content: `
@@ -1106,7 +1202,7 @@ function printServiceOrder(invoiceId) {
           <strong>${escapeHtml(invoice.plate || "-")}</strong>
         </div>
         <div class="summary-block">
-          <span>Situação</span>
+          <span>SituaÃ§Ã£o</span>
           <strong class="status-text status-text-${status}">${statusLabel(status)}</strong>
         </div>
       </section>
@@ -1125,7 +1221,7 @@ function printServiceOrder(invoiceId) {
               <strong>${escapeHtml(client?.document || "-")}</strong>
             </div>
             <div>
-              <span>Endereço</span>
+              <span>EndereÃ§o</span>
               <strong>${escapeHtml(clientAddress || "-")}</strong>
             </div>
             <div>
@@ -1135,14 +1231,14 @@ function printServiceOrder(invoiceId) {
           </div>
         </article>
         <article class="detail-card">
-          <h2>Serviço</h2>
+          <h2>ServiÃ§o</h2>
           <div class="field-list">
             <div>
               <span>Status operacional</span>
               <strong>${escapeHtml(invoice.operationStatus || "-")}</strong>
             </div>
             <div>
-              <span>KM do veículo</span>
+              <span>KM do veÃ­culo</span>
               <strong>${formatKm(invoice.vehicleKm)}</strong>
             </div>
             <div>
@@ -1183,19 +1279,19 @@ function printServiceOrder(invoiceId) {
         </article>
       </section>
       <section class="notes-box">
-        <h2>Observações operacionais</h2>
-        <p>${escapeHtml(invoice.operationStatus || "Sem observações registradas.")}</p>
+        <h2>ObservaÃ§Ãµes operacionais</h2>
+        <p>${escapeHtml(invoice.operationStatus || "Sem observaÃ§Ãµes registradas.")}</p>
       </section>
       ${buildPrintImageGallery(invoice.images)}
       <section class="signature-grid">
-        <div><span></span><strong>Responsável pela OS</strong></div>
+        <div><span></span><strong>ResponsÃ¡vel pela OS</strong></div>
         <div><span></span><strong>Assinatura do cliente</strong></div>
       </section>
     `,
   });
 
   openPrintDocument(html);
-  showToast("OS aberta para impressão.");
+  showToast("OS aberta para impressÃ£o.");
 }
 
 function buildPrintableDocument({ title, subtitle, orientation, content }) {
@@ -1315,7 +1411,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #d7dee8;
-            table-layout: fixed; /* Força o texto a quebrar sem expandir a tabela */
+            table-layout: fixed; /* ForÃ§a o texto a quebrar sem expandir a tabela */
           }
           thead {
             display: table-header-group;
@@ -1778,7 +1874,7 @@ async function prepareInvoiceImage(file) {
 
 document.querySelector("#openInvoiceModal").addEventListener("click", () => {
   if (!state.clients.length) {
-    showToast("Cadastre um cliente antes de lançar uma nota.");
+    showToast("Cadastre um cliente antes de lanÃ§ar uma nota.");
     return;
   }
   resetInvoiceForm();
@@ -1869,7 +1965,7 @@ document.querySelector("#invoiceForm").addEventListener("submit", async (event) 
     closeDialog("invoiceModal");
     showToast("Nota salva com sucesso.");
   } catch {
-    showToast("Não foi possível salvar a nota.");
+    showToast("NÃ£o foi possÃ­vel salvar a nota.");
   }
 });
 
@@ -1894,7 +1990,7 @@ document.querySelector("#clientForm").addEventListener("submit", async (event) =
     closeDialog("clientModal");
     showToast("Cliente salvo com sucesso.");
   } catch {
-    showToast("Não foi possível salvar o cliente.");
+    showToast("NÃ£o foi possÃ­vel salvar o cliente.");
   }
 });
 
@@ -1908,7 +2004,7 @@ els.companyForm.addEventListener("submit", async (event) => {
   };
   await saveData();
   renderSettings();
-  showToast("Configurações salvas.");
+  showToast("ConfiguraÃ§Ãµes salvas.");
 });
 
 els.companyLogo.addEventListener("change", async (event) => {
@@ -1922,7 +2018,7 @@ els.companyLogo.addEventListener("change", async (event) => {
   }
 
   if (file.size > MAX_LOGO_SIZE) {
-    showToast("Use uma imagem com até 2 MB.");
+    showToast("Use uma imagem com atÃ© 2 MB.");
     event.target.value = "";
     return;
   }
@@ -1933,7 +2029,7 @@ els.companyLogo.addEventListener("change", async (event) => {
     renderSettings();
     showToast("Logo carregada.");
   } catch {
-    showToast("Não foi possível carregar a imagem.");
+    showToast("NÃ£o foi possÃ­vel carregar a imagem.");
   }
 });
 
@@ -1957,7 +2053,7 @@ els.invoiceImages.addEventListener("change", async (event) => {
         continue;
       }
       if (file.size > MAX_INVOICE_IMAGE_SIZE) {
-        showToast(`Imagem muito grande: ${file.name}. Use até 3 MB.`);
+        showToast(`Imagem muito grande: ${file.name}. Use atÃ© 3 MB.`);
         continue;
       }
       currentInvoiceImages.push(await prepareInvoiceImage(file));
@@ -1967,11 +2063,11 @@ els.invoiceImages.addEventListener("change", async (event) => {
     if (files.length > acceptedFiles.length) {
       showToast(`Foram anexadas ${addedCount} imagens. Limite: ${MAX_INVOICE_IMAGES}.`);
     } else if (addedCount > 0) {
-      showToast("Imagem anexada à OS.");
+      showToast("Imagem anexada Ã  OS.");
     }
     renderInvoiceImagePreview();
   } catch {
-    showToast("Não foi possível anexar uma das imagens.");
+    showToast("NÃ£o foi possÃ­vel anexar uma das imagens.");
   } finally {
     event.target.value = "";
   }
@@ -2118,7 +2214,7 @@ document.querySelector("#importData").addEventListener("change", async (event) =
     render();
     showToast("Dados importados com sucesso.");
   } catch {
-    showToast("Não foi possível importar esse arquivo.");
+    showToast("NÃ£o foi possÃ­vel importar esse arquivo.");
   } finally {
     event.target.value = "";
   }
