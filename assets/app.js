@@ -1,6 +1,9 @@
 const STORAGE_KEY = "gestor-nf-data-v1";
 const BACKUP_STORAGE_KEY = "gestor-nf-data-v1-backup";
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
+const MAX_INVOICE_IMAGE_SIZE = 3 * 1024 * 1024;
+const MAX_INVOICE_IMAGES = 8;
+const INVOICE_IMAGE_MAX_DIMENSION = 1400;
 
 const defaultSettings = {
   companyName: "",
@@ -88,6 +91,8 @@ seedData.invoices = [
 ];
 
 let state = loadData();
+let currentInvoiceImages = [];
+let currentSummaryInvoiceId = "";
 
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -117,6 +122,13 @@ const els = {
   logoImage: document.querySelector("#logoImage"),
   logoEmpty: document.querySelector("#logoEmpty"),
   removeLogo: document.querySelector("#removeLogo"),
+  invoiceImages: document.querySelector("#invoiceImages"),
+  invoiceImagePreview: document.querySelector("#invoiceImagePreview"),
+  invoiceSummaryModal: document.querySelector("#invoiceSummaryModal"),
+  invoiceSummaryTitle: document.querySelector("#invoiceSummaryTitle"),
+  invoiceSummaryContent: document.querySelector("#invoiceSummaryContent"),
+  summaryEditInvoice: document.querySelector("#summaryEditInvoice"),
+  summaryPrintInvoice: document.querySelector("#summaryPrintInvoice"),
 };
 
 function makeId() {
@@ -131,13 +143,16 @@ function makeInvoice(serviceOrder, client, plate, amount, paymentMethod, startDa
     fiscalNote: "",
     clientId: client.id,
     plate,
+    vehicleKm: "",
     amount,
     paymentMethod,
+    installments: "",
     startDate,
     termDays: termDays === "" ? "" : Number(termDays),
     paid,
     paidDate,
     operationStatus,
+    images: [],
   };
 }
 
@@ -193,7 +208,11 @@ function hasUsefulData(data) {
 function normalizeInvoice(invoice) {
   return {
     fiscalNote: "",
+    vehicleKm: "",
+    installments: "",
+    images: [],
     ...invoice,
+    images: Array.isArray(invoice?.images) ? invoice.images : [],
   };
 }
 
@@ -323,7 +342,7 @@ function filteredInvoices() {
   return state.invoices.filter((invoice) => {
     const client = getClient(invoice.clientId);
     const haystack = normalize(
-      `${invoice.serviceOrder} ${invoice.fiscalNote} ${client?.name} ${invoice.plate} ${invoice.operationStatus} ${invoice.paymentMethod}`,
+      `${invoice.serviceOrder} ${invoice.fiscalNote} ${invoice.vehicleKm} ${invoice.installments} ${client?.name} ${invoice.plate} ${invoice.operationStatus} ${invoice.paymentMethod}`,
     );
     const matchesQuery = !query || haystack.includes(query);
     const matchesStatus = status === "todos" || getInvoiceStatus(invoice) === status;
@@ -349,7 +368,7 @@ function renderInvoices() {
       const status = getInvoiceStatus(invoice);
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${escapeHtml(invoice.serviceOrder)}</td>
+        <td><button class="os-link" type="button" data-view-invoice="${invoice.id}">OS ${escapeHtml(invoice.serviceOrder)}</button></td>
         <td>${escapeHtml(invoice.fiscalNote || "-")}</td>
         <td>${escapeHtml(client?.name || "Cliente removido")}</td>
         <td>${escapeHtml(invoice.plate || "-")}</td>
@@ -362,7 +381,7 @@ function renderInvoices() {
         <td>${escapeHtml(invoice.operationStatus || "-")}</td>
         <td>
           <div class="actions-cell">
-            <button class="ghost" type="button" data-print-os="${invoice.id}">OS</button>
+            <button class="ghost" type="button" data-view-invoice="${invoice.id}">Ver OS</button>
             <button class="ghost" type="button" data-edit-invoice="${invoice.id}">Editar</button>
             <button class="danger" type="button" data-delete-invoice="${invoice.id}">Excluir</button>
           </div>
@@ -506,6 +525,30 @@ function renderSettings() {
   }
 }
 
+function renderInvoiceImagePreview() {
+  const images = currentInvoiceImages;
+  els.invoiceImagePreview.innerHTML = "";
+
+  if (!images.length) {
+    els.invoiceImagePreview.innerHTML = `<div class="image-empty">Nenhuma imagem anexada.</div>`;
+    return;
+  }
+
+  images.forEach((image) => {
+    const item = document.createElement("article");
+    item.className = "invoice-image-chip";
+    item.innerHTML = `
+      <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name || "Imagem da OS")}" />
+      <div>
+        <strong>${escapeHtml(image.name || "Imagem da OS")}</strong>
+        <span>Anexada à OS</span>
+      </div>
+      <button class="danger" type="button" data-remove-invoice-image="${image.id}">Remover</button>
+    `;
+    els.invoiceImagePreview.appendChild(item);
+  });
+}
+
 function render() {
   renderSelects();
   renderInvoices();
@@ -552,13 +595,18 @@ function resetInvoiceForm(invoice = null) {
   document.querySelector("#fiscalNote").value = invoice?.fiscalNote || "";
   document.querySelector("#invoiceClient").value = invoice?.clientId || state.clients[0]?.id || "";
   document.querySelector("#plate").value = invoice?.plate || "";
+  document.querySelector("#vehicleKm").value = invoice?.vehicleKm || "";
   document.querySelector("#amount").value = invoice ? String(invoice.amount).replace(".", ",") : "";
   document.querySelector("#paymentMethod").value = invoice?.paymentMethod || "PIX";
+  document.querySelector("#installments").value = invoice?.installments || "";
   document.querySelector("#startDate").value = invoice?.startDate || new Date().toISOString().slice(0, 10);
   document.querySelector("#termDays").value = invoice?.termDays ?? "";
   document.querySelector("#paid").value = String(Boolean(invoice?.paid));
   document.querySelector("#paidDate").value = invoice?.paidDate || "";
   document.querySelector("#operationStatus").value = invoice?.operationStatus || "";
+  currentInvoiceImages = Array.isArray(invoice?.images) ? [...invoice.images] : [];
+  els.invoiceImages.value = "";
+  renderInvoiceImagePreview();
 }
 
 function resetClientForm(client = null) {
@@ -731,6 +779,145 @@ function exportInvoicesExcel() {
   showToast("Planilha Excel exportada.");
 }
 
+function formatKm(value) {
+  if (value === "" || value === null || value === undefined) return "-";
+  return `${Number(value || 0).toLocaleString("pt-BR")} km`;
+}
+
+function installmentLabel(invoice) {
+  const installments = Number(invoice.installments || 0);
+  if (!installments) return "-";
+  if (installments === 1) return "1 parcela";
+  const installmentValue = Number(invoice.amount || 0) / installments;
+  return `${installments} parcelas de ${formatMoney(installmentValue)}`;
+}
+
+function buildImageGallery(images, emptyText = "Nenhuma imagem anexada.") {
+  const safeImages = Array.isArray(images) ? images : [];
+  if (!safeImages.length) {
+    return `<div class="summary-empty">${escapeHtml(emptyText)}</div>`;
+  }
+
+  return `
+    <div class="summary-image-grid">
+      ${safeImages
+        .map(
+          (image) => `
+            <figure>
+              <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name || "Imagem da OS")}" />
+              <figcaption>${escapeHtml(image.name || "Imagem da OS")}</figcaption>
+            </figure>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function buildPrintImageGallery(images) {
+  const safeImages = Array.isArray(images) ? images : [];
+  if (!safeImages.length) return "";
+
+  return `
+    <section class="print-images">
+      <h2>Imagens anexadas</h2>
+      <div class="print-image-grid">
+        ${safeImages
+          .map(
+            (image) => `
+              <figure>
+                <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name || "Imagem da OS")}" />
+                <figcaption>${escapeHtml(image.name || "Imagem da OS")}</figcaption>
+              </figure>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function openInvoiceSummary(invoiceId) {
+  const invoice = state.invoices.find((item) => item.id === invoiceId);
+  if (!invoice) return;
+
+  const client = getClient(invoice.clientId);
+  const dueDate = addDays(invoice.startDate, invoice.termDays);
+  const status = getInvoiceStatus(invoice);
+  const images = invoice.images || [];
+  currentSummaryInvoiceId = invoice.id;
+  els.invoiceSummaryTitle.textContent = `Resumo da OS ${invoice.serviceOrder}`;
+  els.invoiceSummaryContent.innerHTML = `
+    <section class="summary-hero">
+      <div>
+        <span>OS</span>
+        <strong>${escapeHtml(invoice.serviceOrder)}</strong>
+      </div>
+      <div>
+        <span>Valor</span>
+        <strong>${formatMoney(invoice.amount)}</strong>
+      </div>
+      <div>
+        <span>Situação</span>
+        <strong>${statusLabel(status)}</strong>
+      </div>
+      <div>
+        <span>Imagens</span>
+        <strong>${images.length}</strong>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <article>
+        <h3>Cliente</h3>
+        <dl>
+          <div><dt>Nome</dt><dd>${escapeHtml(client?.name || "Cliente removido")}</dd></div>
+          <div><dt>CPF/CNPJ</dt><dd>${escapeHtml(client?.document || "-")}</dd></div>
+          <div><dt>Telefone</dt><dd>${escapeHtml(client?.phone || "-")}</dd></div>
+        </dl>
+      </article>
+      <article>
+        <h3>Veículo e serviço</h3>
+        <dl>
+          <div><dt>Placa</dt><dd>${escapeHtml(invoice.plate || "-")}</dd></div>
+          <div><dt>KM</dt><dd>${formatKm(invoice.vehicleKm)}</dd></div>
+          <div><dt>Nota fiscal</dt><dd>${escapeHtml(invoice.fiscalNote || "-")}</dd></div>
+          <div><dt>Status</dt><dd>${escapeHtml(invoice.operationStatus || "-")}</dd></div>
+        </dl>
+      </article>
+      <article>
+        <h3>Pagamento</h3>
+        <dl>
+          <div><dt>Valor total</dt><dd>${formatMoney(invoice.amount)}</dd></div>
+          <div><dt>Forma</dt><dd>${escapeHtml(invoice.paymentMethod || "-")}</dd></div>
+          <div><dt>Parcelas</dt><dd>${installmentLabel(invoice)}</dd></div>
+          <div><dt>Pago?</dt><dd>${invoice.paid ? "Sim" : "Não"}</dd></div>
+        </dl>
+      </article>
+      <article>
+        <h3>Prazo</h3>
+        <dl>
+          <div><dt>Data inicial</dt><dd>${formatDate(invoice.startDate)}</dd></div>
+          <div><dt>Data limite</dt><dd>${dueDate ? formatDate(dueDate) : "-"}</dd></div>
+          <div><dt>Dias</dt><dd>${getDueDays(invoice)}</dd></div>
+          <div><dt>Data de pagamento</dt><dd>${formatDate(invoice.paidDate)}</dd></div>
+        </dl>
+      </article>
+    </section>
+
+    <section class="summary-notes">
+      <h3>Resumo do que foi feito</h3>
+      <p>${escapeHtml(invoice.operationStatus || "Sem observações registradas.")}</p>
+    </section>
+
+    <section class="summary-images">
+      <h3>Imagens anexadas</h3>
+      ${buildImageGallery(images)}
+    </section>
+  `;
+  openDialog("invoiceSummaryModal");
+}
+
 function printServiceOrder(invoiceId) {
   const invoice = state.invoices.find((item) => item.id === invoiceId);
   if (!invoice) return;
@@ -754,46 +941,107 @@ function printServiceOrder(invoiceId) {
     subtitle: `Emitida em ${new Date().toLocaleDateString("pt-BR")}`,
     orientation: "portrait",
     content: `
-      <section class="info-grid">
-        <article>
-          <h2>Cliente</h2>
-          <p><strong>${escapeHtml(client?.name || "Cliente removido")}</strong></p>
-          <p>${escapeHtml(client?.document || "-")}</p>
-          <p>${escapeHtml(clientAddress || "-")}</p>
-          <p>${escapeHtml(client?.phone || "-")}</p>
-        </article>
-        <article>
-          <h2>Dados da OS</h2>
-          <p><strong>OS:</strong> ${escapeHtml(invoice.serviceOrder)}</p>
-          <p><strong>Nota fiscal:</strong> ${escapeHtml(invoice.fiscalNote || "-")}</p>
-          <p><strong>Placa:</strong> ${escapeHtml(invoice.plate || "-")}</p>
-          <p><strong>Status:</strong> ${escapeHtml(invoice.operationStatus || "-")}</p>
-          <p><strong>Situação:</strong> ${statusLabel(status)}</p>
-        </article>
+      <section class="os-summary">
+        <div class="summary-block summary-primary">
+          <span>OS</span>
+          <strong>${escapeHtml(invoice.serviceOrder)}</strong>
+        </div>
+        <div class="summary-block">
+          <span>Nota fiscal</span>
+          <strong>${escapeHtml(invoice.fiscalNote || "-")}</strong>
+        </div>
+        <div class="summary-block">
+          <span>Placa</span>
+          <strong>${escapeHtml(invoice.plate || "-")}</strong>
+        </div>
+        <div class="summary-block">
+          <span>Situação</span>
+          <strong class="status-text status-text-${status}">${statusLabel(status)}</strong>
+        </div>
       </section>
-      <section class="info-grid">
-        <article>
-          <h2>Pagamento</h2>
-          <p><strong>Valor:</strong> ${formatMoney(invoice.amount)}</p>
-          <p><strong>Forma:</strong> ${escapeHtml(invoice.paymentMethod || "-")}</p>
-          <p><strong>Pago:</strong> ${invoice.paid ? "Sim" : "Não"}</p>
-          <p><strong>Data de pagamento:</strong> ${formatDate(invoice.paidDate)}</p>
+
+      <section class="section-title">Dados principais</section>
+      <section class="detail-grid">
+        <article class="detail-card wide">
+          <h2>Cliente</h2>
+          <div class="field-list">
+            <div>
+              <span>Nome</span>
+              <strong>${escapeHtml(client?.name || "Cliente removido")}</strong>
+            </div>
+            <div>
+              <span>CPF/CNPJ</span>
+              <strong>${escapeHtml(client?.document || "-")}</strong>
+            </div>
+            <div>
+              <span>Endereço</span>
+              <strong>${escapeHtml(clientAddress || "-")}</strong>
+            </div>
+            <div>
+              <span>Telefone</span>
+              <strong>${escapeHtml(client?.phone || "-")}</strong>
+            </div>
+          </div>
         </article>
-        <article>
-          <h2>Prazo</h2>
-          <p><strong>Data inicial:</strong> ${formatDate(invoice.startDate)}</p>
-          <p><strong>Prazo em dias:</strong> ${invoice.termDays === "" ? "-" : invoice.termDays}</p>
-          <p><strong>Data limite:</strong> ${dueDate ? formatDate(dueDate) : "-"}</p>
-          <p><strong>Dias restantes:</strong> ${getDueDays(invoice)}</p>
+        <article class="detail-card">
+          <h2>Serviço</h2>
+          <div class="field-list">
+            <div>
+              <span>Status operacional</span>
+              <strong>${escapeHtml(invoice.operationStatus || "-")}</strong>
+            </div>
+            <div>
+              <span>KM do veículo</span>
+              <strong>${formatKm(invoice.vehicleKm)}</strong>
+            </div>
+            <div>
+              <span>Data inicial</span>
+              <strong>${formatDate(invoice.startDate)}</strong>
+            </div>
+            <div>
+              <span>Prazo em dias</span>
+              <strong>${invoice.termDays === "" ? "-" : invoice.termDays}</strong>
+            </div>
+            <div>
+              <span>Data limite</span>
+              <strong>${dueDate ? formatDate(dueDate) : "-"}</strong>
+            </div>
+          </div>
+        </article>
+        <article class="detail-card">
+          <h2>Pagamento</h2>
+          <div class="field-list">
+            <div>
+              <span>Valor</span>
+              <strong class="money-value">${formatMoney(invoice.amount)}</strong>
+            </div>
+            <div>
+              <span>Forma</span>
+              <strong>${escapeHtml(invoice.paymentMethod || "-")}</strong>
+            </div>
+            <div>
+              <span>Parcelas</span>
+              <strong>${installmentLabel(invoice)}</strong>
+            </div>
+            <div>
+              <span>Pago?</span>
+              <strong>${invoice.paid ? "Sim" : "Não"}</strong>
+            </div>
+            <div>
+              <span>Data de pagamento</span>
+              <strong>${formatDate(invoice.paidDate)}</strong>
+            </div>
+          </div>
         </article>
       </section>
       <section class="notes-box">
-        <h2>Observações</h2>
+        <h2>Observações operacionais</h2>
         <p>${escapeHtml(invoice.operationStatus || "Sem observações registradas.")}</p>
       </section>
+      ${buildPrintImageGallery(invoice.images)}
       <section class="signature-grid">
-        <div><span></span><strong>Responsável</strong></div>
-        <div><span></span><strong>Cliente</strong></div>
+        <div><span></span><strong>Responsável pela OS</strong></div>
+        <div><span></span><strong>Assinatura do cliente</strong></div>
       </section>
     `,
   });
@@ -810,70 +1058,92 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
         <meta charset="utf-8" />
         <title>${escapeHtml(title)}</title>
         <style>
-          @page { size: A4 ${orientation}; margin: 12mm; }
-          * { box-sizing: border-box; }
+          @page { size: A4 ${orientation}; margin: ${orientation === "portrait" ? "14mm" : "10mm"}; }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           body {
             margin: 0;
-            color: #162033;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
+            color: #101828;
+            background: #ffffff;
+            font-family: Arial, "Segoe UI", sans-serif;
+            font-size: 12.5px;
+            line-height: 1.45;
           }
           .company-header {
             display: grid;
-            grid-template-columns: 96px 1fr;
-            gap: 16px;
+            grid-template-columns: 116px minmax(0, 1fr);
+            gap: 18px;
             align-items: center;
-            padding-bottom: 14px;
-            border-bottom: 2px solid #1c315f;
+            padding: 14px 16px;
+            border: 1px solid #c7d2e1;
+            border-left: 8px solid #1c315f;
+            border-radius: 10px;
+            background: #f8fafc;
           }
           .company-logo {
             display: grid;
-            width: 96px;
-            height: 72px;
+            width: 100%;
+            height: 82px;
             place-items: center;
             object-fit: contain;
-            border: 1px solid #dfe4ec;
-            border-radius: 6px;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
             color: #687386;
+            background: #ffffff;
             font-weight: 700;
           }
           .company-logo.placeholder {
-            background: #f4f6f9;
+            background: #eef2f7;
           }
           .company-header strong {
             display: block;
-            font-size: 20px;
+            color: #111827;
+            font-size: 22px;
+            line-height: 1.15;
             text-transform: uppercase;
           }
           .company-header span {
             display: block;
-            margin-top: 6px;
-            color: #596579;
+            margin-top: 8px;
+            color: #475467;
+            font-size: 12px;
           }
           .document-title {
             display: flex;
+            align-items: flex-end;
             justify-content: space-between;
             gap: 20px;
-            margin: 18px 0 14px;
+            margin: 20px 0 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #d0d5dd;
           }
           h1 {
             margin: 0;
             color: #1c315f;
-            font-size: 22px;
+            font-size: 25px;
+            line-height: 1.1;
             text-transform: uppercase;
           }
           .subtitle {
-            margin: 4px 0 0;
-            color: #596579;
+            margin: 6px 0 0;
+            color: #667085;
+            font-size: 12px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
           }
           th,
           td {
-            padding: 8px;
-            border: 1px solid #dfe4ec;
+            padding: 9px 10px;
+            border: 1px solid #d7dee8;
             text-align: left;
             vertical-align: top;
           }
@@ -881,48 +1151,204 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             color: #ffffff;
             background: #1c315f;
             font-size: 11px;
+            letter-spacing: 0;
             text-transform: uppercase;
           }
-          .info-grid {
+          td {
+            color: #1f2937;
+          }
+          .os-summary {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+          }
+          .summary-block {
+            min-height: 78px;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.06);
+          }
+          .summary-primary {
+            color: #ffffff;
+            border-color: #1c315f;
+            background: #1c315f;
+          }
+          .summary-block span,
+          .field-list span {
+            display: block;
+            color: #667085;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+          .summary-primary span {
+            color: rgba(255, 255, 255, 0.72);
+          }
+          .summary-block strong {
+            display: block;
+            margin-top: 8px;
+            color: #111827;
+            font-size: 20px;
+            line-height: 1.1;
+            word-break: break-word;
+          }
+          .summary-primary strong {
+            color: #ffffff;
+            font-size: 27px;
+          }
+          .status-text {
+            display: inline-block;
+            width: fit-content;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 13px !important;
+          }
+          .status-text-pago {
+            color: #027a48 !important;
+            background: #ecfdf3;
+          }
+          .status-text-vencido {
+            color: #b42318 !important;
+            background: #fff0ee;
+          }
+          .status-text-no-prazo {
+            color: #8a5a00 !important;
+            background: #fff7df;
+          }
+          .section-title {
+            margin: 8px 0 10px;
+            padding: 7px 10px;
+            border-left: 5px solid #1c315f;
+            color: #1c315f;
+            background: #eef4ff;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+          }
+          .detail-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 12px;
           }
-          article,
+          .detail-card,
           .notes-box {
-            min-height: 118px;
-            padding: 12px;
-            border: 1px solid #dfe4ec;
-            border-radius: 6px;
+            min-height: 130px;
+            padding: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.05);
+          }
+          .detail-card.wide {
+            grid-column: 1 / -1;
           }
           h2 {
-            margin: 0 0 10px;
+            margin: 0 0 12px;
             color: #1c315f;
-            font-size: 13px;
+            font-size: 13.5px;
             text-transform: uppercase;
           }
           p {
             margin: 0 0 7px;
           }
+          .field-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 14px;
+          }
+          .detail-card.wide .field-list {
+            grid-template-columns: 1fr 1fr;
+          }
+          .field-list div {
+            min-height: 48px;
+            padding: 9px 10px;
+            border: 1px solid #e4e9f2;
+            border-radius: 8px;
+            background: #f9fbfd;
+          }
+          .field-list strong {
+            display: block;
+            margin-top: 5px;
+            color: #111827;
+            font-size: 13px;
+            line-height: 1.35;
+            word-break: break-word;
+          }
+          .money-value {
+            color: #027a48 !important;
+            font-size: 17px !important;
+          }
           .notes-box {
-            min-height: 110px;
-            margin-top: 4px;
+            min-height: 118px;
+            margin-top: 12px;
+          }
+          .notes-box p {
+            min-height: 70px;
+            padding: 10px;
+            border: 1px solid #e4e9f2;
+            border-radius: 8px;
+            background: #f9fbfd;
+            color: #1f2937;
+            font-size: 13px;
+          }
+          .print-images {
+            margin-top: 12px;
+            padding: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 8px 22px rgba(16, 24, 40, 0.05);
+            page-break-inside: avoid;
+          }
+          .print-image-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+          }
+          .print-image-grid figure {
+            margin: 0;
+            padding: 8px;
+            border: 1px solid #e4e9f2;
+            border-radius: 8px;
+            background: #f9fbfd;
+            page-break-inside: avoid;
+          }
+          .print-image-grid img {
+            display: block;
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #ffffff;
+          }
+          .print-image-grid figcaption {
+            margin-top: 6px;
+            color: #475467;
+            font-size: 10.5px;
+            text-align: center;
           }
           .signature-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 42px;
-            margin-top: 48px;
+            gap: 38px;
+            margin-top: 58px;
           }
           .signature-grid span {
             display: block;
-            border-top: 1px solid #172033;
+            height: 34px;
+            border-bottom: 2px solid #172033;
           }
           .signature-grid strong {
             display: block;
-            margin-top: 8px;
+            margin-top: 9px;
+            color: #344054;
+            font-size: 12px;
             text-align: center;
+            text-transform: uppercase;
           }
           .print-actions {
             position: fixed;
@@ -1003,6 +1429,36 @@ function readImageAsDataUrl(file) {
   });
 }
 
+function loadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = dataUrl;
+  });
+}
+
+async function prepareInvoiceImage(file) {
+  const dataUrl = await readImageAsDataUrl(file);
+  const image = await loadImage(dataUrl);
+  const scale = Math.min(1, INVOICE_IMAGE_MAX_DIMENSION / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  return {
+    id: makeId(),
+    name: file.name,
+    dataUrl: canvas.toDataURL("image/jpeg", 0.86),
+  };
+}
+
 document.querySelector("#openInvoiceModal").addEventListener("click", () => {
   if (!state.clients.length) {
     showToast("Cadastre um cliente antes de lançar uma nota.");
@@ -1046,13 +1502,16 @@ document.querySelector("#invoiceForm").addEventListener("submit", async (event) 
     fiscalNote: document.querySelector("#fiscalNote").value.trim().toUpperCase(),
     clientId: document.querySelector("#invoiceClient").value,
     plate: document.querySelector("#plate").value.trim().toUpperCase(),
+    vehicleKm: document.querySelector("#vehicleKm").value === "" ? "" : Number(document.querySelector("#vehicleKm").value),
     amount: parseMoney(document.querySelector("#amount").value),
     paymentMethod: document.querySelector("#paymentMethod").value,
+    installments: document.querySelector("#installments").value === "" ? "" : Number(document.querySelector("#installments").value),
     startDate: document.querySelector("#startDate").value,
     termDays: document.querySelector("#termDays").value === "" ? "" : Number(document.querySelector("#termDays").value),
     paid: document.querySelector("#paid").value === "true",
     paidDate: document.querySelector("#paidDate").value,
     operationStatus: document.querySelector("#operationStatus").value.trim().toUpperCase(),
+    images: currentInvoiceImages,
   };
 
   try {
@@ -1128,6 +1587,46 @@ els.companyLogo.addEventListener("change", async (event) => {
   }
 });
 
+els.invoiceImages.addEventListener("change", async (event) => {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
+
+  const availableSlots = MAX_INVOICE_IMAGES - currentInvoiceImages.length;
+  if (availableSlots <= 0) {
+    showToast(`Limite de ${MAX_INVOICE_IMAGES} imagens por OS.`);
+    event.target.value = "";
+    return;
+  }
+
+  const acceptedFiles = files.slice(0, availableSlots);
+  try {
+    let addedCount = 0;
+    for (const file of acceptedFiles) {
+      if (!file.type.startsWith("image/")) {
+        showToast("Escolha apenas arquivos de imagem.");
+        continue;
+      }
+      if (file.size > MAX_INVOICE_IMAGE_SIZE) {
+        showToast(`Imagem muito grande: ${file.name}. Use até 3 MB.`);
+        continue;
+      }
+      currentInvoiceImages.push(await prepareInvoiceImage(file));
+      addedCount += 1;
+    }
+
+    if (files.length > acceptedFiles.length) {
+      showToast(`Foram anexadas ${addedCount} imagens. Limite: ${MAX_INVOICE_IMAGES}.`);
+    } else if (addedCount > 0) {
+      showToast("Imagem anexada à OS.");
+    }
+    renderInvoiceImagePreview();
+  } catch {
+    showToast("Não foi possível anexar uma das imagens.");
+  } finally {
+    event.target.value = "";
+  }
+});
+
 els.removeLogo.addEventListener("click", () => {
   state.settings.companyLogo = "";
   saveData();
@@ -1144,12 +1643,25 @@ document.body.addEventListener("click", async (event) => {
   const editClientId = button.dataset.editClient;
   const deleteClientId = button.dataset.deleteClient;
   const printOsId = button.dataset.printOs;
+  const viewInvoiceId = button.dataset.viewInvoice;
+  const removeInvoiceImageId = button.dataset.removeInvoiceImage;
   const exportFormat = button.dataset.exportFormat;
 
   if (exportFormat) {
     closeDialog("exportModal");
     if (exportFormat === "pdf") exportInvoicesPdf();
     if (exportFormat === "excel") exportInvoicesExcel();
+    return;
+  }
+
+  if (removeInvoiceImageId) {
+    currentInvoiceImages = currentInvoiceImages.filter((image) => image.id !== removeInvoiceImageId);
+    renderInvoiceImagePreview();
+    return;
+  }
+
+  if (viewInvoiceId) {
+    openInvoiceSummary(viewInvoiceId);
     return;
   }
 
@@ -1201,6 +1713,18 @@ document.querySelector("#paid").addEventListener("change", (event) => {
   if (event.target.value === "true" && !paidDate.value) {
     paidDate.value = new Date().toISOString().slice(0, 10);
   }
+});
+
+els.summaryPrintInvoice.addEventListener("click", () => {
+  if (currentSummaryInvoiceId) printServiceOrder(currentSummaryInvoiceId);
+});
+
+els.summaryEditInvoice.addEventListener("click", () => {
+  const invoice = state.invoices.find((item) => item.id === currentSummaryInvoiceId);
+  if (!invoice) return;
+  closeDialog("invoiceSummaryModal");
+  resetInvoiceForm(invoice);
+  openDialog("invoiceModal");
 });
 
 document.querySelector("#exportData").addEventListener("click", () => {

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestor de Notas Fiscais</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260605-2" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260605-4" />
   </head>
   <body>
     <div class="app-shell" id="appShell">
@@ -271,6 +271,10 @@
             <input id="plate" placeholder="Ex.: ABC1D23" />
           </label>
           <label>
+            KM do veículo
+            <input id="vehicleKm" type="number" min="0" step="1" placeholder="Ex.: 125000" />
+          </label>
+          <label>
             Valor
             <input id="amount" required inputmode="decimal" placeholder="Ex.: 600,00" />
           </label>
@@ -283,6 +287,10 @@
               <option>Dinheiro</option>
               <option>Transferência</option>
             </select>
+          </label>
+          <label>
+            Quantidade de parcelas
+            <input id="installments" type="number" min="1" step="1" placeholder="Ex.: 3" />
           </label>
           <label>
             Data inicial
@@ -307,12 +315,31 @@
             Status operacional
             <input id="operationStatus" placeholder="Ex.: EM DIAGNÓSTICO, FALTA NOTA" />
           </label>
+          <label class="wide">
+            Imagens da OS
+            <input id="invoiceImages" type="file" accept="image/*" multiple />
+          </label>
         </div>
+        <div id="invoiceImagePreview" class="invoice-image-preview"></div>
         <footer>
           <button class="secondary" value="cancel" type="button" data-close="invoiceModal">Cancelar</button>
           <button class="primary" type="submit">Salvar nota</button>
         </footer>
       </form>
+    </dialog>
+
+    <dialog id="invoiceSummaryModal" class="summary-dialog">
+      <div class="modal-form summary-modal">
+        <header>
+          <h2 id="invoiceSummaryTitle">Resumo da OS</h2>
+          <button class="icon-button" value="cancel" type="button" data-close="invoiceSummaryModal" aria-label="Fechar">×</button>
+        </header>
+        <div id="invoiceSummaryContent" class="summary-content"></div>
+        <footer>
+          <button class="secondary" id="summaryEditInvoice" type="button">Editar OS</button>
+          <button class="primary" id="summaryPrintInvoice" type="button">Imprimir OS</button>
+        </footer>
+      </div>
     </dialog>
 
     <dialog id="clientModal">
@@ -368,6 +395,6 @@
     </dialog>
 
     <div id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="assets/app.js?v=20260605-2"></script>
+    <script type="module" src="assets/app.js?v=20260605-4"></script>
   </body>
 </html>
