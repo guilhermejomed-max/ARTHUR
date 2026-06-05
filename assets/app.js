@@ -744,6 +744,20 @@ function exportInvoicesPdf() {
     subtitle: `Gerado em ${generatedAt} · Total: ${formatMoney(total)}`,
     orientation: "landscape",
     content: `
+      <section class="report-summary">
+        <div>
+          <span>Notas listadas</span>
+          <strong>${rows.length}</strong>
+        </div>
+        <div>
+          <span>Total lançado</span>
+          <strong>${formatMoney(total)}</strong>
+        </div>
+        <div>
+          <span>Emitido em</span>
+          <strong>${escapeHtml(generatedAt)}</strong>
+        </div>
+      </section>
       <div class="table-wrap-print">
         <table class="report-table">
         <thead>
@@ -1194,10 +1208,10 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
         <style>
           @page {
             size: A4 ${orientation};
-            margin: ${orientation === "portrait" ? "18mm 16mm 18mm 16mm" : "15mm 12mm 15mm 12mm"};
+            margin: ${orientation === "portrait" ? "14mm 13mm 16mm" : "10mm 9mm 12mm"};
           }
           html {
-            background: #eef2f7;
+            background: #e9eef5;
           }
           * {
             box-sizing: border-box;
@@ -1206,52 +1220,51 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           body {
             margin: 0;
-            padding: 18px;
+            padding: 16px;
             color: #101828;
-            background: #eef2f7;
+            background: #e9eef5;
             font-family: Arial, "Segoe UI", sans-serif;
             font-size: 12px;
-            line-height: 1.4;
+            line-height: 1.38;
             width: 100%;
           }
           .document-page {
             width: 100%;
             max-width: 100%;
             margin: 0 auto;
-            padding: ${orientation === "portrait" ? "18px" : "14px"};
-            border: 1px solid #d8e1ee;
-            border-radius: 10px;
+            padding: ${orientation === "portrait" ? "18px 20px 16px" : "14px 16px 12px"};
+            border: 1px solid #cfd8e6;
+            border-radius: 4px;
             background: #ffffff;
-            box-shadow: 0 16px 40px rgba(16, 24, 40, 0.12);
+            box-shadow: 0 18px 48px rgba(16, 24, 40, 0.16);
           }
           .company-header {
             display: flex;
-            gap: 20px;
+            gap: 14px;
             align-items: center;
-            padding: 14px 16px;
-            border: 1px solid #b8c7dc;
-            border-left: 10px solid #1c315f;
-            border-radius: 12px;
-            background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
+            padding: 0 0 12px;
+            border-bottom: 2px solid #1c315f;
+            background: #ffffff;
             width: 100%;
           }
           .company-logo {
             display: flex;
-            width: 110px;
-            height: 75px;
+            width: 86px;
+            height: 58px;
             justify-content: center;
             align-items: center;
             object-fit: contain;
             padding: 6px;
-            border: 1px solid #b8c7dc;
-            border-radius: 10px;
+            border: 1px solid #d7dee8;
+            border-radius: 4px;
             color: #687386;
             background: #ffffff;
             font-weight: 700;
             flex-shrink: 0;
           }
           .company-logo.placeholder {
-            background: #eef2f7;
+            color: #1c315f;
+            background: #f3f6fb;
           }
           .company-header > div {
             flex-grow: 1;
@@ -1259,7 +1272,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           .company-header strong {
             display: block;
             color: #111827;
-            font-size: 20px;
+            font-size: 18px;
             line-height: 1.15;
             text-transform: uppercase;
           }
@@ -1267,42 +1280,41 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: block;
             margin-top: 6px;
             color: #475467;
-            font-size: 11px;
+            font-size: 10.5px;
           }
           .document-title {
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             justify-content: space-between;
-            gap: 20px;
+            gap: 16px;
             margin: 14px 0 12px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            color: #ffffff;
-            background: #1c315f;
+            padding: 0 0 10px;
+            border-bottom: 1px solid #d7dee8;
+            color: #101828;
+            background: #ffffff;
             width: 100%;
           }
           h1 {
             margin: 0;
-            color: #ffffff;
-            font-size: 22px;
-            line-height: 1.1;
+            color: #1c315f;
+            font-size: ${orientation === "portrait" ? "22px" : "20px"};
+            line-height: 1.15;
             text-transform: uppercase;
           }
           .subtitle {
-            margin: 4px 0 0;
-            color: rgba(255, 255, 255, 0.78);
-            font-size: 12px;
+            margin: 5px 0 0;
+            color: #667085;
+            font-size: 11px;
           }
           .table-wrap-print {
             width: 100%;
             overflow: visible;
-            margin-top: 4px;
+            margin-top: 8px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
+            border: 1px solid #d7dee8;
             table-layout: fixed; /* Força o texto a quebrar sem expandir a tabela */
           }
           thead {
@@ -1317,26 +1329,62 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           th,
           td {
-            padding: 7px 8px;
-            border: 1px solid #d7dee8;
+            padding: 6px 7px;
+            border-bottom: 1px solid #e5eaf1;
+            border-right: 1px solid #eef2f7;
             text-align: left;
             vertical-align: top;
-            font-size: 11px;
-            line-height: 1.3;
+            font-size: 10.5px;
+            line-height: 1.28;
             overflow-wrap: anywhere;
             word-break: normal;
             word-wrap: break-word;
             white-space: normal; /* Garante que os textos quebrem linha na tabela */
           }
+          th:last-child,
+          td:last-child {
+            border-right: 0;
+          }
           th {
             color: #ffffff;
             background: #1c315f;
-            font-size: 10.5px;
+            font-size: 9px;
             letter-spacing: 0;
             text-transform: uppercase;
           }
           td {
             color: #1f2937;
+          }
+          tbody tr:nth-child(even) td {
+            background: #f8fafc;
+          }
+          tbody tr:last-child td {
+            border-bottom: 0;
+          }
+          .report-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin: 0 0 10px;
+          }
+          .report-summary div {
+            padding: 9px 10px;
+            border: 1px solid #d7dee8;
+            border-left: 4px solid #1c315f;
+            background: #f8fafc;
+          }
+          .report-summary span {
+            display: block;
+            color: #667085;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+          .report-summary strong {
+            display: block;
+            margin-top: 4px;
+            color: #111827;
+            font-size: 14px;
           }
           .report-table th:nth-child(1),
           .report-table td:nth-child(1) {
@@ -1371,20 +1419,21 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             width: 11%;
           }
           .os-summary {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 14px;
+            display: grid;
+            grid-template-columns: 1.05fr repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
             width: 100%;
           }
           .summary-block {
-            flex: 1;
-            min-width: 0; /* Impede que caixas estiquem o flexbox */
-            min-height: 70px;
-            padding: 10px 12px;
-            border: 1px solid #b8c7dc;
-            border-radius: 12px;
-            background: #ffffff;
-            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
+            min-width: 0;
+            min-height: 58px;
+            padding: 9px 10px;
+            border: 1px solid #d7dee8;
+            border-top: 3px solid #1c315f;
+            border-radius: 4px;
+            background: #f8fafc;
+            box-shadow: none;
           }
           .summary-primary {
             color: #ffffff;
@@ -1395,7 +1444,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           .field-list span {
             display: block;
             color: #667085;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             text-transform: uppercase;
           }
@@ -1404,15 +1453,15 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .summary-block strong {
             display: block;
-            margin-top: 6px;
+            margin-top: 5px;
             color: #111827;
-            font-size: 18px;
+            font-size: 15px;
             line-height: 1.1;
             word-break: break-word;
           }
           .summary-primary strong {
             color: #ffffff;
-            font-size: 24px;
+            font-size: 22px;
           }
           .status-text {
             display: inline-block;
@@ -1434,39 +1483,41 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             background: #fff7df;
           }
           .section-title {
-            margin: 10px 0 8px;
-            padding: 6px 10px;
-            border-left: 6px solid #1c315f;
-            border-radius: 8px;
+            margin: 10px 0 7px;
+            padding: 0 0 5px;
+            border-bottom: 1px solid #d7dee8;
             color: #1c315f;
-            background: #eef4ff;
-            font-size: 11.5px;
+            background: transparent;
+            font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
             width: 100%;
           }
           .detail-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 10px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 8px;
             width: 100%;
+          }
+          .detail-card.wide {
+            grid-column: 1 / -1;
           }
           .detail-card,
           .notes-box {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #b8c7dc;
-            border-radius: 12px;
+            padding: 10px;
+            border: 1px solid #d7dee8;
+            border-radius: 4px;
             background: #ffffff;
-            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06);
+            box-shadow: none;
             break-inside: avoid;
             page-break-inside: avoid;
           }
           h2 {
-            margin: 0 0 10px;
+            margin: 0 0 8px;
             color: #1c315f;
-            font-size: 13px;
+            font-size: 11px;
             text-transform: uppercase;
           }
           p {
@@ -1474,16 +1525,16 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .field-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 7px;
             width: 100%;
           }
           .field-list div {
-            padding: 8px 10px;
-            border: 1px solid #dbe4ef;
-            border-radius: 8px;
-            background: #f8fbff;
-            min-height: 45px;
+            padding: 7px 8px;
+            border: 1px solid #e5eaf1;
+            border-radius: 3px;
+            background: #fbfcfe;
+            min-height: 40px;
           }
           .field-list div.highlight-field {
             border-color: #b6cdf6;
@@ -1493,69 +1544,70 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             display: block;
             margin-top: 4px;
             color: #111827;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1.3;
             word-break: break-word;
           }
           .money-value {
             color: #027a48 !important;
-            font-size: 15px !important;
+            font-size: 13px !important;
           }
           .notes-box {
-            margin-top: 10px;
+            margin-top: 8px;
           }
           .notes-box p {
-            padding: 10px;
-            border: 1px solid #dbe4ef;
-            border-radius: 8px;
-            background: #f8fbff;
+            min-height: 44px;
+            padding: 9px;
+            border: 1px solid #e5eaf1;
+            border-radius: 3px;
+            background: #fbfcfe;
             color: #1f2937;
-            font-size: 12px;
+            font-size: 11px;
           }
           .print-images {
-            margin-top: 10px;
-            padding: 12px;
-            border: 1px solid #b8c7dc;
-            border-radius: 12px;
+            margin-top: 8px;
+            padding: 10px;
+            border: 1px solid #d7dee8;
+            border-radius: 4px;
             background: #ffffff;
-            box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06);
+            box-shadow: none;
             page-break-inside: avoid;
             width: 100%;
           }
           .print-image-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 8px;
             width: 100%;
           }
           .print-image-grid figure {
             margin: 0;
-            padding: 8px;
-            border: 1px solid #dbe4ef;
-            border-radius: 10px;
-            background: #f8fbff;
+            padding: 6px;
+            border: 1px solid #e5eaf1;
+            border-radius: 3px;
+            background: #fbfcfe;
             page-break-inside: avoid;
           }
           .print-image-grid img {
             display: block;
             width: 100%;
-            max-height: 200px;
+            max-height: 180px;
             object-fit: contain;
             border: 1px solid #eef2f7;
-            border-radius: 8px;
+            border-radius: 3px;
             background: #ffffff;
           }
           .print-image-grid figcaption {
-            margin-top: 6px;
+            margin-top: 5px;
             color: #475467;
-            font-size: 10px;
+            font-size: 9px;
             text-align: center;
           }
           .signature-grid {
             display: flex;
             justify-content: space-between;
-            gap: 40px;
-            margin-top: 40px;
+            gap: 28px;
+            margin-top: 34px;
             width: 100%;
             page-break-inside: avoid;
           }
@@ -1564,14 +1616,14 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .signature-grid span {
             display: block;
-            height: 24px;
+            height: 20px;
             border-bottom: 1px solid #172033;
           }
           .signature-grid strong {
             display: block;
-            margin-top: 6px;
+            margin-top: 5px;
             color: #344054;
-            font-size: 11px;
+            font-size: 9.5px;
             text-align: center;
             text-transform: uppercase;
           }
@@ -1590,6 +1642,14 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             font: inherit;
             font-weight: 700;
             cursor: pointer;
+          }
+          .document-footer {
+            margin-top: 12px;
+            padding-top: 6px;
+            border-top: 1px solid #e5eaf1;
+            color: #98a2b3;
+            font-size: 9px;
+            text-align: center;
           }
           @media print {
             html,
@@ -1616,6 +1676,14 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             .print-actions {
               display: none;
             }
+            .document-footer {
+              position: fixed;
+              right: 0;
+              bottom: -8mm;
+              left: 0;
+              margin: 0;
+              border-top: 0;
+            }
           }
         </style>
       </head>
@@ -1629,6 +1697,7 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             </div>
           </section>
           ${content}
+          <footer class="document-footer">Criado por Guilherme Martins</footer>
         </main>
         <div class="print-actions">
           <button type="button" onclick="window.print()">Imprimir / salvar PDF</button>
