@@ -113,6 +113,16 @@ function remoteStateRef() {
   return firebaseFirestoreApi.doc(firebaseDb, REMOTE_STATE_COLLECTION, REMOTE_STATE_DOCUMENT);
 }
 
+function firestoreErrorMessage(error) {
+  if (error?.code === "permission-denied") {
+    return "Sem permissão no Firestore. Publique regras permitindo usuários autenticados.";
+  }
+  if (error?.code === "unavailable") {
+    return "Firestore indisponível agora. Tente novamente em instantes.";
+  }
+  return "Não foi possível acessar os dados do Firebase.";
+}
+
 async function loadRemoteData() {
   if (!firebaseDb || !firebaseFirestoreApi) {
     state = emptyState();
@@ -128,7 +138,7 @@ async function loadRemoteData() {
     console.warn("Nao foi possivel carregar os dados do Firestore.", error);
     state = emptyState();
     render();
-    showToast("Nao foi possivel carregar os dados do Firebase.");
+    showToast(firestoreErrorMessage(error));
   }
 }
 
@@ -252,7 +262,12 @@ async function saveData() {
     throw new Error("Firebase indisponivel para salvar os dados.");
   }
   state.schemaVersion = 2;
-  await firebaseFirestoreApi.setDoc(remoteStateRef(), normalizeState(state));
+  try {
+    await firebaseFirestoreApi.setDoc(remoteStateRef(), normalizeState(state));
+  } catch (error) {
+    console.warn("Nao foi possivel salvar os dados no Firestore.", error);
+    throw new Error(firestoreErrorMessage(error));
+  }
 }
 
 async function saveClient(client) {

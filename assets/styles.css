@@ -107,10 +107,22 @@ body.signed-in .auth-screen {
 }
 
 .creator-credit {
-  margin: 8px 0 0;
-  color: var(--muted);
+  position: fixed;
+  left: 50%;
+  bottom: 10px;
+  z-index: 20;
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid rgba(223, 228, 236, 0.72);
+  border-radius: 999px;
+  color: rgba(104, 115, 134, 0.92);
+  background: rgba(255, 255, 255, 0.78);
   font-size: 0.82rem;
   font-weight: 700;
+  line-height: 1;
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
 }
 
 button,
@@ -225,7 +237,7 @@ button {
 
 .workspace {
   min-width: 0;
-  padding: 28px 24px;
+  padding: 28px 24px 46px;
 }
 
 .topbar {
