@@ -842,9 +842,9 @@ function paymentButtonLabel(invoice) {
   if (isInstallmentPayment(invoice)) {
     const installments = Number(invoice.installments || 0);
     const paidInstallments = Math.min(Number(invoice.paidInstallments || 0), installments);
-    return paidInstallments > 0 ? `PAGO PARCELA ${paidInstallments}/${installments || "?"}` : "Informar pagamento";
+    return paidInstallments > 0 ? `PAGO ${paidInstallments}/${installments || "?"}` : "Informar pag.";
   }
-  return invoice.paid ? "PAGO" : "Informar pagamento";
+  return invoice.paid ? "PAGO" : "Informar pag.";
 }
 
 function informPayment(invoiceId) {
