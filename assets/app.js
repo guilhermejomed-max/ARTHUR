@@ -1,11 +1,12 @@
-const STORAGE_KEY = "gestor-nf-data-v1";
-const BACKUP_STORAGE_KEY = "gestor-nf-data-v1-backup";
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 const MAX_INVOICE_IMAGE_SIZE = 3 * 1024 * 1024;
 const MAX_INVOICE_IMAGES = 8;
 const INVOICE_IMAGE_MAX_DIMENSION = 1400;
 const FIREBASE_SDK_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 const FIREBASE_AUTH_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+const FIREBASE_FIRESTORE_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+const REMOTE_STATE_COLLECTION = "gestor-nf";
+const REMOTE_STATE_DOCUMENT = "appState";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDZPH3hfbx4hq2FGprv9Jmc3J07LmzZ7iI",
@@ -23,89 +24,13 @@ const defaultSettings = {
   companyLogo: "",
 };
 
-const seedData = {
-  clients: [
-    {
-      id: makeId(),
-      document: "60.319.985/0001-44",
-      name: "JOMED TRANSPORTES E LOGISTICA S/A",
-      address: "RUA SISA",
-      number: "261",
-      zip: "07221-030",
-      district: "CIDADE INDUSTRIAL SATELITE",
-      city: "GUARULHOS",
-      state: "SP",
-      phone: "(11) 4966-8215",
-    },
-    {
-      id: makeId(),
-      document: "05.504.835/0001-00",
-      name: "BORA TRANSPORTES LTDA",
-      address: "AVENIDA NELI LADEIA",
-      number: "455",
-      zip: "07629-004",
-      district: "CAPOAVINHA",
-      city: "MAIRIPORA",
-      state: "SP",
-      phone: "",
-    },
-    {
-      id: makeId(),
-      document: "08.979.961/0001-00",
-      name: "TRANS TOP LOGISTICA E TRANSPORTE LTDA",
-      address: "RUA SISA - SALA 02",
-      number: "261",
-      zip: "07221-030",
-      district: "CIDADE INDUSTRIAL SATELITE",
-      city: "GUARULHOS",
-      state: "SP",
-      phone: "(11) 4966-8218",
-    },
-    {
-      id: makeId(),
-      document: "44.471.985/0001-09",
-      name: "ADVANCE TRANSATUR TRANSPORTADORA",
-      address: "R JOSE SOLANA",
-      number: "600",
-      zip: "04829-280",
-      district: "RIO BONITO",
-      city: "SAO PAULO",
-      state: "SP",
-      phone: "",
-    },
-    {
-      id: makeId(),
-      document: "20.146.015/0003-31",
-      name: "VIACAO SAO CRISTOVAO",
-      address: "R: SOLDADO BENEDITO PATRICIO",
-      number: "40",
-      zip: "02176-040",
-      district: "PARQUE NOVO MUNDO",
-      city: "SAO PAULO",
-      state: "SP",
-      phone: "",
-    },
-  ],
-  invoices: [],
-  settings: defaultSettings,
-};
-
-seedData.invoices = [
-  makeInvoice("459", seedData.clients[1], "VEICULO AZUL", 0, "PIX", "2026-03-02", "", false, "", "EM DIAGNOSTICO"),
-  makeInvoice("461", seedData.clients[2], "FXK9A25", 600, "PIX", "2026-03-02", "", false, "", "PAG 09/03"),
-  makeInvoice("462", seedData.clients[0], "SVL0G47", 300, "PIX", "2026-03-03", 10, true, "2026-03-06", ""),
-  makeInvoice("463", seedData.clients[1], "FVC4G62", 850, "PIX", "2026-03-02", "", false, "", "PAG 18/03"),
-  makeInvoice("465", seedData.clients[0], "GDD7C71", 600, "PIX", "2026-03-03", 10, true, "2026-03-10", ""),
-  makeInvoice("468", seedData.clients[0], "FWO6I42", 150, "PIX", "2026-03-04", "", false, "", "FALTA NOTA"),
-  makeInvoice("471", seedData.clients[0], "FPQ6D14", 550, "PIX", "2026-03-05", 10, true, "2026-03-12", ""),
-  makeInvoice("472", seedData.clients[3], "FVG4A33", 900, "PIX", "2026-03-09", "", false, "", "FALTA NOTA"),
-];
-
-let state = loadData();
+let state = emptyState();
 let currentInvoiceImages = [];
 let currentSummaryInvoiceId = "";
 let firebaseAuth = null;
 let firebaseAuthApi = null;
+let firebaseDb = null;
+let firebaseFirestoreApi = null;
 
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -160,48 +85,12 @@ function makeId() {
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function makeInvoice(serviceOrder, client, plate, amount, paymentMethod, startDate, termDays, paid, paidDate, operationStatus) {
-  return {
-    id: makeId(),
-    serviceOrder,
-    fiscalNote: "",
-    clientId: client.id,
-    plate,
-    vehicleKm: "",
-    amount,
-    paymentMethod,
-    installments: "",
-    paidInstallments: 0,
-    startDate,
-    termDays: termDays === "" ? "" : Number(termDays),
-    paid,
-    paidDate,
-    operationStatus,
-    images: [],
-  };
-}
-
-function loadData() {
-  const stored = readStoredData(STORAGE_KEY);
-  if (isValidStoredState(stored)) return stored;
-
-  const backup = readStoredData(BACKUP_STORAGE_KEY);
-  if (isValidStoredState(backup)) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
-    return backup;
-  }
-
-  return normalizeState(seedData);
-}
-
-function readStoredData(key) {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? normalizeState(JSON.parse(stored)) : null;
-  } catch (error) {
-    console.warn("Nao foi possivel carregar os dados locais.", error);
-    return null;
-  }
+function emptyState() {
+  return normalizeState({
+    clients: [],
+    invoices: [],
+    settings: defaultSettings,
+  });
 }
 
 function normalizeState(data) {
@@ -216,12 +105,31 @@ function normalizeState(data) {
   };
 }
 
-function isValidStoredState(data) {
-  return Boolean(data && (data.schemaVersion >= 2 || hasUsefulData(data)));
-}
-
 function hasFirebaseConfig() {
   return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
+}
+
+function remoteStateRef() {
+  return firebaseFirestoreApi.doc(firebaseDb, REMOTE_STATE_COLLECTION, REMOTE_STATE_DOCUMENT);
+}
+
+async function loadRemoteData() {
+  if (!firebaseDb || !firebaseFirestoreApi) {
+    state = emptyState();
+    render();
+    return;
+  }
+
+  try {
+    const snapshot = await firebaseFirestoreApi.getDoc(remoteStateRef());
+    state = snapshot.exists() ? normalizeState(snapshot.data()) : emptyState();
+    render();
+  } catch (error) {
+    console.warn("Nao foi possivel carregar os dados do Firestore.", error);
+    state = emptyState();
+    render();
+    showToast("Nao foi possivel carregar os dados do Firebase.");
+  }
 }
 
 function setAuthMessage(message, isError = true) {
@@ -262,13 +170,25 @@ async function initAuth() {
   }
 
   try {
-    const [{ initializeApp }, authModule] = await Promise.all([import(FIREBASE_SDK_URL), import(FIREBASE_AUTH_URL)]);
+    const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
+      import(FIREBASE_SDK_URL),
+      import(FIREBASE_AUTH_URL),
+      import(FIREBASE_FIRESTORE_URL),
+    ]);
     const app = initializeApp(firebaseConfig);
     firebaseAuth = authModule.getAuth(app);
     firebaseAuthApi = authModule;
-    authModule.onAuthStateChanged(firebaseAuth, (user) => {
+    firebaseDb = firestoreModule.getFirestore(app);
+    firebaseFirestoreApi = firestoreModule;
+    authModule.onAuthStateChanged(firebaseAuth, async (user) => {
       setAuthState(user);
-      if (user) setAuthMessage("");
+      if (user) {
+        setAuthMessage("");
+        await loadRemoteData();
+      } else {
+        state = emptyState();
+        render();
+      }
     });
   } catch (error) {
     console.warn("Nao foi possivel iniciar o Firebase.", error);
@@ -306,16 +226,6 @@ async function signUp() {
   }
 }
 
-function hasUsefulData(data) {
-  if (!data) return false;
-  const settings = data.settings || {};
-  return (
-    data.clients.length > 0 ||
-    data.invoices.length > 0 ||
-    Boolean(settings.companyName || settings.companyCnpj || settings.companyNumber || settings.companyLogo)
-  );
-}
-
 function normalizeInvoice(invoice) {
   const normalized = {
     fiscalNote: "",
@@ -337,13 +247,12 @@ function normalizeInvoice(invoice) {
   return normalized;
 }
 
-function saveData() {
-  const previous = readStoredData(STORAGE_KEY);
-  if (isValidStoredState(previous)) {
-    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(previous));
+async function saveData() {
+  if (!firebaseAuth?.currentUser || !firebaseDb || !firebaseFirestoreApi) {
+    throw new Error("Firebase indisponivel para salvar os dados.");
   }
   state.schemaVersion = 2;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  await firebaseFirestoreApi.setDoc(remoteStateRef(), normalizeState(state));
 }
 
 async function saveClient(client) {
@@ -353,7 +262,7 @@ async function saveClient(client) {
   } else {
     state.clients.push(client);
   }
-  saveData();
+  await saveData();
   render();
 }
 
@@ -364,19 +273,19 @@ async function saveInvoice(invoice) {
   } else {
     state.invoices.push(invoice);
   }
-  saveData();
+  await saveData();
   render();
 }
 
 async function removeClient(id) {
   state.clients = state.clients.filter((client) => client.id !== id);
-  saveData();
+  await saveData();
   render();
 }
 
 async function removeInvoice(id) {
   state.invoices = state.invoices.filter((invoice) => invoice.id !== id);
-  saveData();
+  await saveData();
   render();
 }
 
@@ -953,7 +862,7 @@ function paymentButtonLabel(invoice) {
   return invoice.paid ? "PAGO" : "Informar pag.";
 }
 
-function informPayment(invoiceId) {
+async function informPayment(invoiceId) {
   const invoice = state.invoices.find((item) => item.id === invoiceId);
   if (!invoice) return;
 
@@ -980,11 +889,15 @@ function informPayment(invoiceId) {
     showToast("Pagamento informado.");
   }
 
-  saveData();
-  render();
-  if (els.invoiceSummaryModal.open && currentSummaryInvoiceId === invoiceId) {
-    closeDialog("invoiceSummaryModal");
-    openInvoiceSummary(invoiceId);
+  try {
+    await saveData();
+    render();
+    if (els.invoiceSummaryModal.open && currentSummaryInvoiceId === invoiceId) {
+      closeDialog("invoiceSummaryModal");
+      openInvoiceSummary(invoiceId);
+    }
+  } catch {
+    showToast("Nao foi possivel salvar no Firebase.");
   }
 }
 
@@ -1901,7 +1814,7 @@ document.querySelector("#clientForm").addEventListener("submit", async (event) =
   }
 });
 
-els.companyForm.addEventListener("submit", (event) => {
+els.companyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   state.settings = {
     ...state.settings,
@@ -1909,7 +1822,7 @@ els.companyForm.addEventListener("submit", (event) => {
     companyCnpj: els.companyCnpj.value.trim(),
     companyNumber: els.companyNumber.value.trim(),
   };
-  saveData();
+  await saveData();
   renderSettings();
   showToast("Configurações salvas.");
 });
@@ -1932,7 +1845,7 @@ els.companyLogo.addEventListener("change", async (event) => {
 
   try {
     state.settings.companyLogo = await readImageAsDataUrl(file);
-    saveData();
+    await saveData();
     renderSettings();
     showToast("Logo carregada.");
   } catch {
@@ -1980,9 +1893,9 @@ els.invoiceImages.addEventListener("change", async (event) => {
   }
 });
 
-els.removeLogo.addEventListener("click", () => {
+els.removeLogo.addEventListener("click", async () => {
   state.settings.companyLogo = "";
-  saveData();
+  await saveData();
   renderSettings();
   showToast("Logo removida.");
 });
@@ -2020,7 +1933,7 @@ document.body.addEventListener("click", async (event) => {
     }
 
     if (informPaymentId) {
-      informPayment(informPaymentId);
+      await informPayment(informPaymentId);
       return;
     }
 
@@ -2117,7 +2030,7 @@ document.querySelector("#importData").addEventListener("change", async (event) =
       invoices: imported.invoices,
       settings: imported.settings || state.settings,
     });
-    saveData();
+    await saveData();
     render();
     showToast("Dados importados com sucesso.");
   } catch {
