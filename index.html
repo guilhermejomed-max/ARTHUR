@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestor de Notas Fiscais</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260605-8" />
+    <link rel="stylesheet" href="assets/styles.css?v=20260605-9" />
   </head>
   <body>
     <div class="app-shell" id="appShell">
@@ -293,6 +293,10 @@
             Quantidade de parcelas
             <input id="installments" type="number" min="1" step="1" placeholder="Ex.: 3" />
           </label>
+          <label id="paidInstallmentsLabel" hidden>
+            Parcelas pagas
+            <input id="paidInstallments" type="number" min="0" step="1" placeholder="Ex.: 1" />
+          </label>
           <label>
             Data inicial
             <input id="startDate" required type="date" />
@@ -396,6 +400,6 @@
     </dialog>
 
     <div id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="assets/app.js?v=20260605-8"></script>
+    <script type="module" src="assets/app.js?v=20260605-9"></script>
   </body>
 </html>

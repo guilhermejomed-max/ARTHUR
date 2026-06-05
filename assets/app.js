@@ -126,6 +126,8 @@ const els = {
   invoiceImagePreview: document.querySelector("#invoiceImagePreview"),
   installmentsLabel: document.querySelector("#installmentsLabel"),
   installments: document.querySelector("#installments"),
+  paidInstallmentsLabel: document.querySelector("#paidInstallmentsLabel"),
+  paidInstallments: document.querySelector("#paidInstallments"),
   invoiceSummaryModal: document.querySelector("#invoiceSummaryModal"),
   invoiceSummaryTitle: document.querySelector("#invoiceSummaryTitle"),
   invoiceSummaryContent: document.querySelector("#invoiceSummaryContent"),
@@ -614,6 +616,7 @@ function resetInvoiceForm(invoice = null) {
   document.querySelector("#amount").value = invoice ? String(invoice.amount).replace(".", ",") : "";
   document.querySelector("#paymentMethod").value = invoice?.paymentMethod || "PIX";
   document.querySelector("#installments").value = invoice?.installments || "";
+  document.querySelector("#paidInstallments").value = invoice?.paidInstallments || "";
   updateInstallmentsVisibility();
   document.querySelector("#startDate").value = invoice?.startDate || new Date().toISOString().slice(0, 10);
   document.querySelector("#termDays").value = invoice?.termDays ?? "";
@@ -808,7 +811,11 @@ function isInstallmentPayment(invoiceOrMethod) {
 function updateInstallmentsVisibility() {
   const isParcelado = isInstallmentPayment(document.querySelector("#paymentMethod").value);
   els.installmentsLabel.hidden = !isParcelado;
-  if (!isParcelado) els.installments.value = "";
+  els.paidInstallmentsLabel.hidden = !isParcelado;
+  if (!isParcelado) {
+    els.installments.value = "";
+    els.paidInstallments.value = "";
+  }
 }
 
 function installmentLabel(invoice) {
@@ -1628,9 +1635,14 @@ document.querySelector("#invoiceForm").addEventListener("submit", async (event) 
 
   if (isInstallmentPayment(invoice)) {
     const installments = Number(invoice.installments || 0);
-    const previousPaidInstallments = Number(existingInvoice?.paidInstallments || 0);
-    invoice.paidInstallments = invoice.paid ? installments : Math.min(previousPaidInstallments, installments || 0);
+    const typedPaidInstallments = document.querySelector("#paidInstallments").value === ""
+      ? Number(existingInvoice?.paidInstallments || 0)
+      : Number(document.querySelector("#paidInstallments").value);
+    invoice.paidInstallments = Math.min(Math.max(typedPaidInstallments, 0), installments || 0);
     invoice.paid = installments > 0 && invoice.paidInstallments >= installments;
+    if (invoice.paidInstallments > 0 && !invoice.paidDate) {
+      invoice.paidDate = new Date().toISOString().slice(0, 10);
+    }
   } else {
     invoice.paidInstallments = 0;
   }
