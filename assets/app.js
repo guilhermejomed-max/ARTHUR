@@ -8,10 +8,12 @@ const FIREBASE_SDK_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-ap
 const FIREBASE_AUTH_URL = "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  appId: "",
+  apiKey: "AIzaSyDZPH3hfbx4hq2FGprv9Jmc3J07LmzZ7iI",
+  authDomain: "arthur-424a0.firebaseapp.com",
+  projectId: "arthur-424a0",
+  storageBucket: "arthur-424a0.firebasestorage.app",
+  messagingSenderId: "906078778864",
+  appId: "1:906078778864:web:64b5a5df1d5189666cd935",
 };
 
 const defaultSettings = {
