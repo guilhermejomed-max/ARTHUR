@@ -1,4 +1,5 @@
 const STORAGE_KEY = "gestor-nf-data-v1";
+const BACKUP_STORAGE_KEY = "gestor-nf-data-v1-backup";
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 
 const defaultSettings = {
@@ -141,18 +142,31 @@ function makeInvoice(serviceOrder, client, plate, amount, paymentMethod, startDa
 }
 
 function loadData() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return normalizeState(JSON.parse(stored));
-  } catch (error) {
-    console.warn("Nao foi possivel carregar os dados locais.", error);
+  const stored = readStoredData(STORAGE_KEY);
+  if (isValidStoredState(stored)) return stored;
+
+  const backup = readStoredData(BACKUP_STORAGE_KEY);
+  if (isValidStoredState(backup)) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
+    return backup;
   }
 
   return normalizeState(seedData);
 }
 
+function readStoredData(key) {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? normalizeState(JSON.parse(stored)) : null;
+  } catch (error) {
+    console.warn("Nao foi possivel carregar os dados locais.", error);
+    return null;
+  }
+}
+
 function normalizeState(data) {
   return {
+    schemaVersion: Number(data?.schemaVersion) || 0,
     clients: Array.isArray(data?.clients) ? data.clients : [],
     invoices: Array.isArray(data?.invoices) ? data.invoices.map(normalizeInvoice) : [],
     settings: {
@@ -160,6 +174,20 @@ function normalizeState(data) {
       ...(data?.settings || {}),
     },
   };
+}
+
+function isValidStoredState(data) {
+  return Boolean(data && (data.schemaVersion >= 2 || hasUsefulData(data)));
+}
+
+function hasUsefulData(data) {
+  if (!data) return false;
+  const settings = data.settings || {};
+  return (
+    data.clients.length > 0 ||
+    data.invoices.length > 0 ||
+    Boolean(settings.companyName || settings.companyCnpj || settings.companyNumber || settings.companyLogo)
+  );
 }
 
 function normalizeInvoice(invoice) {
@@ -170,6 +198,11 @@ function normalizeInvoice(invoice) {
 }
 
 function saveData() {
+  const previous = readStoredData(STORAGE_KEY);
+  if (isValidStoredState(previous)) {
+    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(previous));
+  }
+  state.schemaVersion = 2;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
