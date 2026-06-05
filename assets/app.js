@@ -714,7 +714,8 @@ function exportInvoicesPdf() {
     subtitle: `Gerado em ${generatedAt} · Total: ${formatMoney(total)}`,
     orientation: "landscape",
     content: `
-      <table>
+      <div class="table-wrap-print">
+        <table class="report-table">
         <thead>
           <tr>
             <th>OS</th>
@@ -730,7 +731,8 @@ function exportInvoicesPdf() {
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
-      </table>
+        </table>
+      </div>
     `,
   });
 
@@ -1158,7 +1160,10 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
         <style>
           @page {
             size: A4 ${orientation};
-            margin: ${orientation === "portrait" ? "15mm 12mm 15mm 12mm" : "12mm 10mm"};
+            margin: ${orientation === "portrait" ? "18mm 16mm 18mm 16mm" : "15mm 12mm 15mm 12mm"};
+          }
+          html {
+            background: #eef2f7;
           }
           * {
             box-sizing: border-box;
@@ -1167,9 +1172,9 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           body {
             margin: 0;
-            padding: 0;
+            padding: 18px;
             color: #101828;
-            background: #ffffff;
+            background: #eef2f7;
             font-family: Arial, "Segoe UI", sans-serif;
             font-size: 12px;
             line-height: 1.4;
@@ -1178,6 +1183,12 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           .document-page {
             width: 100%;
             max-width: 100%;
+            margin: 0 auto;
+            padding: ${orientation === "portrait" ? "18px" : "14px"};
+            border: 1px solid #d8e1ee;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 16px 40px rgba(16, 24, 40, 0.12);
           }
           .company-header {
             display: flex;
@@ -1250,7 +1261,8 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           .table-wrap-print {
             width: 100%;
-            overflow: hidden;
+            overflow: visible;
+            margin-top: 4px;
           }
           table {
             width: 100%;
@@ -1259,13 +1271,26 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             border-radius: 8px;
             table-layout: fixed; /* Força o texto a quebrar sem expandir a tabela */
           }
+          thead {
+            display: table-header-group;
+          }
+          tfoot {
+            display: table-footer-group;
+          }
+          tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
           th,
           td {
-            padding: 8px 10px;
+            padding: 7px 8px;
             border: 1px solid #d7dee8;
             text-align: left;
             vertical-align: top;
             font-size: 11px;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+            word-break: normal;
             word-wrap: break-word;
             white-space: normal; /* Garante que os textos quebrem linha na tabela */
           }
@@ -1278,6 +1303,38 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
           }
           td {
             color: #1f2937;
+          }
+          .report-table th:nth-child(1),
+          .report-table td:nth-child(1) {
+            width: 8%;
+          }
+          .report-table th:nth-child(2),
+          .report-table td:nth-child(2),
+          .report-table th:nth-child(4),
+          .report-table td:nth-child(4) {
+            width: 10%;
+          }
+          .report-table th:nth-child(3),
+          .report-table td:nth-child(3) {
+            width: 22%;
+          }
+          .report-table th:nth-child(5),
+          .report-table td:nth-child(5),
+          .report-table th:nth-child(6),
+          .report-table td:nth-child(6),
+          .report-table th:nth-child(7),
+          .report-table td:nth-child(7),
+          .report-table th:nth-child(8),
+          .report-table td:nth-child(8) {
+            width: 10%;
+          }
+          .report-table th:nth-child(9),
+          .report-table td:nth-child(9) {
+            width: 9%;
+          }
+          .report-table th:nth-child(10),
+          .report-table td:nth-child(10) {
+            width: 11%;
           }
           .os-summary {
             display: flex;
@@ -1369,6 +1426,8 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             border-radius: 12px;
             background: #ffffff;
             box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06);
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
           h2 {
             margin: 0 0 10px;
@@ -1499,6 +1558,27 @@ function buildPrintableDocument({ title, subtitle, orientation, content }) {
             cursor: pointer;
           }
           @media print {
+            html,
+            body {
+              background: #ffffff;
+            }
+            body {
+              padding: 0;
+            }
+            .document-page {
+              padding: 0;
+              border: 0;
+              border-radius: 0;
+              box-shadow: none;
+            }
+            .company-header,
+            .document-title,
+            .summary-block,
+            .detail-card,
+            .notes-box,
+            .print-images {
+              box-shadow: none;
+            }
             .print-actions {
               display: none;
             }
